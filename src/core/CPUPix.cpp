@@ -11,6 +11,7 @@ namespace cpupix {
 
 namespace kernel {
 
+Texture2D texture;
 int w, h;
 int n_light;
 Light light[4];
@@ -44,6 +45,29 @@ void DownSample(unsigned char *frame_buf, unsigned char *pbo_buf);
 
 }
 
+Texture2D::~Texture2D() {
+	delete[] data_;
+}
+
+glm::vec3 Texture2D::Sample(float u, float v) {
+	int x = glm::clamp(int(u * w_), 0, w_ - 1);
+	int y = glm::clamp(int(v * h_), 0, h_ - 1);
+	int i = y * w_ + x;
+	return data_[i];
+}
+
+void Texture2D::Bind(unsigned char *d, int w, int h, bool gamma_correction) {
+	delete[] data_;
+	w_ = w;
+	h_ = h;
+	data_ = new glm::vec3[w * h];
+	if(gamma_correction)
+		for(int i = 0; i < w * h; ++i)
+			data_[i] = glm::pow(glm::vec3(d[i * 3] / 255.f, d[i * 3 + 1] / 255.f, d[i * 3 + 2] / 255.f), glm::vec3(1.f / 2.2f)); // Gamma correction
+	else
+		for(int i = 0; i < w * h; ++i)
+			data_[i] = glm::vec3(d[i * 3] / 255.f, d[i * 3 + 1] / 255.f, d[i * 3 + 2] / 255.f);
+}
 
 CPUPix::CPUPix(int window_w, int window_h, AA aa = AA::NOAA)
 	: window_w_(window_w), window_h_(window_h),
@@ -202,15 +226,8 @@ void CPUPix::Time(float time) {
 	kernel::time = time;
 }
 
-void CPUPix::Texture(unsigned char *d, int w, int h, bool gamma_correction) {
-	glm::vec3 *data = new glm::vec3[w * h];
-	if(gamma_correction)
-		for(int i = 0; i < w * h; ++i)
-			data[i] = glm::pow(glm::vec3(d[i * 3] / 255.f, d[i * 3 + 1] / 255.f, d[i * 3 + 2] / 255.f), glm::vec3(1.f / 2.2f)); // Gamma correction
-	else
-		for(int i = 0; i < w * h; ++i)
-			data[i] = glm::vec3(d[i * 3] / 255.f, d[i * 3 + 1] / 255.f, d[i * 3 + 2] / 255.f);
-	delete[] data;
+void CPUPix::Texture(unsigned char *data, int w, int h, bool gamma_correction) {
+	kernel::texture.Bind(data, w, h, gamma_correction);
 }
 
 void CPUPix::Lights(int n, Light *light) {

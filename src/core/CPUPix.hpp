@@ -87,6 +87,15 @@ struct Light {
 	float power;
 };
 
+class Texture2D {
+	int w_, h_;
+	glm::vec3 *data_ = nullptr;
+public:
+	~Texture2D();
+	glm::vec3 Sample(float u, float v);
+	void Bind(unsigned char *d, int w, int h, bool gamma_correction);
+};
+
 class CPUPix {
 	int window_w_, window_h_;
 	unsigned char *frame_;
