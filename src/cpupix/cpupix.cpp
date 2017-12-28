@@ -18,7 +18,7 @@ GLFWwindow* InitGLFW(int window_w, int window_h) {
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 	glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
 
-	GLFWwindow *window = glfwCreateWindow(window_w, window_h, "CUPix", NULL, NULL);
+	GLFWwindow *window = glfwCreateWindow(window_w, window_h, "CPUPix", NULL, NULL);
 	if(!window) {
 		glfwTerminate();
 		exit(EXIT_FAILURE);
@@ -59,7 +59,7 @@ void UpdateGL(GLFWwindow *window, int window_w, int window_h, unsigned char *fra
 
 int main(int argc, char *argv[]) {
 	if(argc < 2) {
-		printf("Usage: cupix input_obj_file [output_video_file]\n");
+		printf("Usage: cpupix input_obj_file [output_video_file]\n");
 		return 0;
 	}
 	bool record = false;
