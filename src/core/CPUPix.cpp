@@ -28,21 +28,21 @@ const int bitmap_size = 128 * 32; // 128 characters, each 32 bytes
 char bitmap[bitmap_size];
 
 void Clear(unsigned char *frame_buf, float *depth_buf);
-// void NormalSpace(VertexIn *in, VertexOut *out, Vertex *v);
-// void WindowSpace(Vertex *v);
-// void AssemTriangle(Vertex *v, Triangle *triangle);
-// void Rasterize(glm::ivec2 corner, glm::ivec2 dim, Vertex *v, VertexOut *va, float *depth_buf, unsigned char* frame_buf);
-// void RasterizeMSAA(glm::ivec2 corner, glm::ivec2 dim, Vertex *v, VertexOut *va, float *depth_buf, unsigned char* frame_buf);
-// void DrawCharater(int ch, int x0, int y0, bool ssaa, unsigned char *frame_buf);
-// void DownSample(unsigned char *frame_buf, unsigned char *pbo_buf);
+void NormalSpace(VertexIn *in, VertexOut *out, Vertex *v);
+void WindowSpace(Vertex *v);
+void AssemTriangle(Vertex *v, Triangle *triangle);
+void Rasterize(glm::ivec2 corner, glm::ivec2 dim, Vertex *v, VertexOut *va, float *depth_buf, unsigned char* frame_buf);
+void RasterizeMSAA(glm::ivec2 corner, glm::ivec2 dim, Vertex *v, VertexOut *va, float *depth_buf, unsigned char* frame_buf);
+void DrawCharater(int ch, int x0, int y0, bool ssaa, unsigned char *frame_buf);
+void DownSample(unsigned char *frame_buf, unsigned char *pbo_buf);
 
 }
 
 
-CPUPix::CPUPix(int window_w, int window_h, AA aa = NOAA, bool record = false)
-	: window_w_(window_w), window_h_(window_h), frame_w_(window_w), frame_h_(window_h)
-	, aa_(aa), record_(record) {
-	if(aa_ != NOAA) {
+CPUPix::CPUPix(int window_w, int window_h, AA aa = AA::NOAA)
+	: window_w_(window_w), window_h_(window_h),
+	frame_w_(window_w), frame_h_(window_h), aa_(aa) {
+	if(aa_ != AA::NOAA) {
 		frame_w_ *= 2;
 		frame_h_ *= 2;
 	}
@@ -52,12 +52,12 @@ CPUPix::CPUPix(int window_w, int window_h, AA aa = NOAA, bool record = false)
 	kernel::w = frame_w_;
 	kernel::h = frame_h_;
 
-	// load bitmap font into GPU memory
+	// load bitmap font into kernel memory
 	FILE *font_file = fopen("font/bitmap_font.data", "rb");
 	char bitmap[kernel::bitmap_size];
 	size_t r = fread(bitmap, 1, kernel::bitmap_size, font_file);
 	fclose(font_file);
-	memcpy(kernel::bitmap, bitmap, kernel::bitmap_size);
+	memcpy(kernel::bitmap, bitmap, r);
 }
 
 CPUPix::~CPUPix() {
@@ -67,26 +67,21 @@ CPUPix::~CPUPix() {
 	delete[] frame_buf_;
 }
 
-void CPUPix::BeforeDraw() {
-}
-
 void CPUPix::AfterDraw() {
-	// if(aa_ != NOAA) kernel::DownSample<<<dim3((window_w_-1)/32+1, (window_h_-1)/32+1), dim3(32, 32)>>>(frame_buf_, pbo_buf_);
-	// else cudaMemcpy(pbo_buf_, frame_buf_, window_w_ * window_h_ * 3, cudaMemcpyDeviceToDevice);
-	// if(record_) cudaMemcpy(frame_, pbo_buf_, window_w_ * window_h_ * 3, cudaMemcpyDeviceToHost);
-	memcpy(frame_, frame_buf_, window_w_ * window_h_ * 3);
+	if(aa_ != AA::NOAA) kernel::DownSample(frame_buf_, frame_);
+	else memcpy(frame_, frame_buf_, window_w_ * window_h_ * 3);
 }
 
 void CPUPix::Enable(Flag flag) {
 	bool b = true;
 	switch(flag) {
-		case DEPTH_TEST:
+		case Flag::DEPTH_TEST:
 			kernel::depth_test = b;
 			return;
-		case BLEND:
+		case Flag::BLEND:
 			kernel::blend = b;
 			return;
-		case CULL_FACE:
+		case Flag::CULL_FACE:
 			cull_ = b;
 			return;
 	}
@@ -95,13 +90,13 @@ void CPUPix::Enable(Flag flag) {
 void CPUPix::Disable(Flag flag) {
 	bool b = false;
 	switch(flag) {
-		case DEPTH_TEST:
+		case Flag::DEPTH_TEST:
 			kernel::depth_test = b;
 			return;
-		case BLEND:
+		case Flag::BLEND:
 			kernel::blend = b;
 			return;
-		case CULL_FACE:
+		case Flag::CULL_FACE:
 			cull_ = b;
 			return;
 	}
@@ -127,46 +122,44 @@ void CPUPix::Clear() {
 }
 
 void CPUPix::Draw() {
-	// kernel::NormalSpace<<<(n_triangle_*3-1)/32+1, 32>>>(vertex_in_, vertex_out_, vertex_buf_);
-	// kernel::WindowSpace<<<(n_triangle_*3-1)/32+1, 32>>>(vertex_buf_);
-	// kernel::AssemTriangle<<<(n_triangle_-1)/32+1, 32>>>(vertex_buf_, triangle_buf_);
-	// cudaMemcpy(triangle_, triangle_buf_, sizeof(Triangle) * n_triangle_, cudaMemcpyDeviceToHost);
-	// for(int i = 0; i < n_triangle_; i++)
-	// 	if(!triangle_[i].empty)
-	// 		if(!cull_ || (cull_face_ != FRONT_AND_BACK
-	// 		&& (triangle_[i].winding == front_face_ != cull_face_))) {
-	// 			if(aa_ == MSAA) {
-	// 				glm::ivec2 v0 = triangle_[i].aabb[0] / 2, v1 = triangle_[i].aabb[1] / 2;
-	// 				glm::ivec2 dim = v1 - v0 + 1;
-	// 				kernel::RasterizeMSAA<<<dim3((dim.x-1)/8+1, (dim.y-1)/16+1), dim3(8, 16)>>>
-	// 					(v0, dim, vertex_buf_ + i * 3, vertex_out_ + i * 3, depth_buf_, frame_buf_);
-	// 			} else {
-	// 				glm::ivec2 dim = triangle_[i].aabb[1] - triangle_[i].aabb[0] + 1;
-	// 				kernel::Rasterize<<<dim3((dim.x-1)/8+1, (dim.y-1)/16+1), dim3(8, 16)>>>
-	// 					(triangle_[i].aabb[0], dim, vertex_buf_ + i * 3, vertex_out_ + i * 3, depth_buf_, frame_buf_);
-	// 			}
-
-	// 	}
+	kernel::NormalSpace(vertex_in_, vertex_out_, vertex_buf_);
+	kernel::WindowSpace(vertex_buf_);
+	kernel::AssemTriangle(vertex_buf_, triangle_buf_);
+	memcpy(triangle_, triangle_buf_, sizeof(Triangle) * n_triangle_);
+	for(int i = 0; i < n_triangle_; i++)
+		if(!triangle_[i].empty)
+			if(!cull_ || ((cull_face_ != Face::FRONT_AND_BACK)
+			&& ((triangle_[i].winding == front_face_) != (cull_face_ == Face::FRONT)))) {
+				if(aa_ == AA::MSAA) {
+					glm::ivec2 v0 = triangle_[i].aabb[0] / 2, v1 = triangle_[i].aabb[1] / 2;
+					glm::ivec2 dim = v1 - v0 + 1;
+					kernel::RasterizeMSAA(v0, dim, vertex_buf_ + i * 3, vertex_out_ + i * 3, depth_buf_, frame_buf_);
+				} else {
+					glm::ivec2 dim = triangle_[i].aabb[1] - triangle_[i].aabb[0] + 1;
+					kernel::Rasterize(triangle_[i].aabb[0], dim, vertex_buf_ + i * 3, vertex_out_ + i * 3, depth_buf_, frame_buf_);
+				}
+			}
 }
 
 void CPUPix::DrawFPS(int fps) {
-	bool aa = aa_ != NOAA;
-	// kernel::DrawCharater<<<1, dim3(16, 16)>>>('F',  0, 0, aa, frame_buf_);
-	// kernel::DrawCharater<<<1, dim3(16, 16)>>>('P', 16, 0, aa, frame_buf_);
-	// kernel::DrawCharater<<<1, dim3(16, 16)>>>('S', 32 - 3, 0, aa, frame_buf_);
-	// kernel::DrawCharater<<<1, dim3(16, 16)>>>(fps % 1000 / 100 + 48, 48 + 5, 0, aa, frame_buf_);
-	// kernel::DrawCharater<<<1, dim3(16, 16)>>>(fps % 100 / 10   + 48, 64 + 5, 0, aa, frame_buf_);
-	// kernel::DrawCharater<<<1, dim3(16, 16)>>>(fps % 10         + 48, 80 + 5, 0, aa, frame_buf_);
+	bool aa = aa_ != AA::NOAA;
+	kernel::DrawCharater('F',  0, 0, aa, frame_buf_);
+	kernel::DrawCharater('P', 16, 0, aa, frame_buf_);
+	kernel::DrawCharater('S', 32 - 3, 0, aa, frame_buf_);
+	kernel::DrawCharater(fps % 1000 / 100 + 48, 48 + 5, 0, aa, frame_buf_);
+	kernel::DrawCharater(fps % 100 / 10   + 48, 64 + 5, 0, aa, frame_buf_);
+	kernel::DrawCharater(fps % 10         + 48, 80 + 5, 0, aa, frame_buf_);
 }
 
 void CPUPix::VertexData(int size, float *position, float *normal, float *uv) {
 	n_vertex_ = size;
 	n_triangle_ = n_vertex_ / 3;
+	kernel::n_triangle = n_triangle_;
+
 	VertexIn *v = new VertexIn[n_vertex_];
 	for(int i = 0; i < n_vertex_; i++) {
 		v[i].position = glm::vec3(position[i * 3], position[i * 3 + 1], position[i * 3 + 2]);
 		v[i].normal = glm::vec3(normal[i * 3], normal[i * 3 + 1], normal[i * 3 + 2]);
-		v[i].color = glm::vec3(rand() / RAND_MAX, rand() / RAND_MAX, rand() / RAND_MAX);
 		v[i].uv = glm::vec2(uv[i * 2], uv[i * 2 + 1]);
 	}
 	delete[] vertex_in_;
@@ -176,13 +169,15 @@ void CPUPix::VertexData(int size, float *position, float *normal, float *uv) {
 
 	delete[] vertex_out_;
 	vertex_out_ = new VertexOut[n_vertex_];
+
 	delete[] vertex_buf_;
 	vertex_buf_= new Vertex[n_vertex_];
+
 	delete[] triangle_buf_;
 	triangle_buf_ = new Triangle[n_triangle_];
+
 	delete[] triangle_;
 	triangle_ = new Triangle[n_triangle_];
-	kernel::n_triangle = n_triangle_;
 }
 
 void CPUPix::MVP(glm::mat4 &mvp) {
@@ -198,37 +193,19 @@ void CPUPix::Time(float time) {
 }
 
 void CPUPix::Texture(unsigned char *d, int w, int h, bool gamma_correction) {
-	// unsigned char *data = new unsigned char[w * h * 4];
-	// for(int i = 0; i < w * h; i++) {
-	// 	data[i * 4 + 0] = d[i * 3 + 0];
-	// 	data[i * 4 + 1] = d[i * 3 + 1];
-	// 	data[i * 4 + 2] = d[i * 3 + 2];
-	// 	data[i * 4 + 3] = 0;
-	// }
-	// size_t pitch;
-	// cudaFree(texture_buf_);
-	// cudaMallocPitch((void**)&texture_buf_, &pitch, w * 4, h);
-	// cudaMemcpy2D(
-	// 	texture_buf_, pitch,
-	// 	data, w * 4,
-	// 	w * 4, h,
-	// 	cudaMemcpyHostToDevice);
-	// delete[] data;
-
-	// kernel::texture.normalized = true;
-	// kernel::texture.sRGB = gamma_correction;
-	// kernel::texture.filterMode = cudaFilterModeLinear;
-	// kernel::texture.addressMode[0] = cudaAddressModeWrap;
-	// kernel::texture.addressMode[1] = cudaAddressModeWrap;
-	// cudaChannelFormatDesc desc =
-	// 	cudaCreateChannelDesc(8, 8, 8, 8, cudaChannelFormatKindUnsigned);
-
-	// cudaBindTexture2D(NULL, kernel::texture, texture_buf_, desc, w, h, pitch);
+	glm::vec3 *data = new glm::vec3[w * h];
+	if(gamma_correction)
+		for(int i = 0; i < w * h; ++i)
+			data[i] = glm::pow(glm::vec3(d[i * 3] / 255.f, d[i * 3 + 1] / 255.f, d[i * 3 + 2] / 255.f), glm::vec3(1.f / 2.2f)); // Gamma correction
+	else
+		for(int i = 0; i < w * h; ++i)
+			data[i] = glm::vec3(d[i * 3] / 255.f, d[i * 3 + 1] / 255.f, d[i * 3 + 2] / 255.f);
+	delete[] data;
 }
 
 void CPUPix::Lights(int n, Light *light) {
 	kernel::n_light = n;
-	memcpy(kernel::light, light, n);
+	memcpy(kernel::light, light, sizeof(Light) * n);
 }
 
 void CPUPix::Toggle(bool toggle) {

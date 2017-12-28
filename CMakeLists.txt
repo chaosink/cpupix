@@ -28,6 +28,9 @@ include_directories(
 add_library(core
 	src/core/CPUPix.cpp
 	src/core/CPUPixKernel.cpp
+	src/core/VertexShader.cpp
+	src/core/FragmentShader.cpp
+	src/core/Shadertoy.cpp
 )
 
 add_executable(cpupix

@@ -13,7 +13,7 @@ using namespace cpupix;
 GLFWwindow* InitGLFW(int window_w, int window_h) {
 	if(!glfwInit()) exit(EXIT_FAILURE);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 	glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
@@ -38,7 +38,7 @@ void TermGLFW(GLFWwindow *window) {
 	glfwTerminate();
 }
 
-GLuint InitGL(int window_w, int window_h) {
+GLuint InitGL() {
 	GLuint pbo;
 	glGenBuffers(1, &pbo);
 	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo);
@@ -50,7 +50,8 @@ void TermGL(GLuint pbo) {
 	glDeleteBuffers(1, &pbo);
 }
 
-void UpdateGL(GLFWwindow *window, int window_w, int window_h) {
+void UpdateGL(GLFWwindow *window, int window_w, int window_h, unsigned char *frame) {
+	glBufferData(GL_PIXEL_UNPACK_BUFFER, window_w * window_h * 3, frame, GL_DYNAMIC_COPY);
 	glDrawPixels(window_w, window_h, GL_RGB, GL_UNSIGNED_BYTE, 0);
 	glfwSwapBuffers(window);
 	glfwPollEvents();
@@ -70,12 +71,12 @@ int main(int argc, char *argv[]) {
 	// int window_h = 360;
 
 	GLFWwindow* window = InitGLFW(window_w, window_h);
-	GLuint pbo = InitGL(window_w, window_h);
+	GLuint pbo = InitGL();
 
-	CPUPix pix(window_w, window_h, NOAA, record);
+	CPUPix pix(window_w, window_h, AA::NOAA);
 	pix.ClearColor(0.08f, 0.16f, 0.24f, 1.f);
-	// pix.Enable(CULL_FACE);
-	// pix.CullFace(BACK);
+	// pix.Disable(CULL_FACE);
+	// pix.CullFace(FRONT);
 	// pix.FrontFace(CW);
 
 	Light light[2]{
@@ -97,12 +98,11 @@ int main(int argc, char *argv[]) {
 	double time = glfwGetTime();
 	Camera camera(window, window_w, window_h, time);
 	FPS fps(time);
-	Toggle toggle(window, GLFW_KEY_T, true); // init state = true
+	Toggle toggle(window, GLFW_KEY_T, true); // init_state = true
 	Video video(window_w, window_h);
 	while(glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS && !glfwWindowShouldClose(window)) {
 		time = glfwGetTime();
 
-		pix.BeforeDraw();
 		pix.Clear();
 
 		glm::mat4 m;
@@ -120,12 +120,11 @@ int main(int argc, char *argv[]) {
 			printf("\nUse Phong shading\n");
 		}));
 
-		glBufferData(GL_PIXEL_UNPACK_BUFFER, window_w * window_h * 3, pix.frame(), GL_DYNAMIC_COPY);
 		pix.Draw();
 		pix.DrawFPS(fps.Update(time) + 0.5f);
 		pix.AfterDraw();
 
-		UpdateGL(window, window_w, window_h);
+		UpdateGL(window, window_w, window_h, pix.frame());
 		if(record) video.Add(pix.frame());
 	}
 	fps.Term();

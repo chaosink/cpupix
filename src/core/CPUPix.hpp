@@ -4,7 +4,7 @@
 
 #define VERSION_MAJOR 0
 #define VERSION_MINOR 1
-#define VERSION_PATCH 2
+#define VERSION_PATCH 0
 
 #define _QUOTE(S) #S
 #define _STR(S) _QUOTE(S)
@@ -12,21 +12,21 @@
 
 namespace cpupix {
 
-enum AA : unsigned char {
+enum class AA : unsigned char {
 	NOAA,
 	MSAA,
 	SSAA
 };
-enum Winding : unsigned char {
+enum class Winding : unsigned char {
 	CCW,
 	CW
 };
-enum Face : unsigned char {
+enum class Face : unsigned char {
 	BACK,
 	FRONT,
 	FRONT_AND_BACK
 };
-enum Flag : unsigned char {
+enum class Flag : unsigned char {
 	DEPTH_TEST,
 	BLEND,
 	CULL_FACE,
@@ -35,13 +35,11 @@ enum Flag : unsigned char {
 struct VertexIn {
 	glm::vec3 position;
 	glm::vec3 normal;
-	glm::vec3 color;
 	glm::vec2 uv;
 };
 struct VertexOut {
 	glm::vec3 position;
 	glm::vec3 normal;
-	glm::vec3 color;
 	glm::vec2 uv;
 };
 struct Vertex {
@@ -58,7 +56,6 @@ struct FragmentIn {
 
 	glm::vec3 position;
 	glm::vec3 normal;
-	glm::vec3 color;
 	glm::vec2 uv;
 };
 struct Light {
@@ -69,15 +66,13 @@ struct Light {
 
 class CPUPix {
 	int window_w_, window_h_;
-	unsigned char *pbo_buf_;
-	bool record_;
 	unsigned char *frame_;
 
 	int frame_w_, frame_h_;
 	AA aa_;
 	bool cull_ = true;
-	Face cull_face_ = BACK;
-	Winding front_face_ = CCW;
+	Face cull_face_ = Face::BACK;
+	Winding front_face_ = Winding::CCW;
 	int n_triangle_, n_vertex_;
 	Triangle *triangle_ = NULL;
 	unsigned char *frame_buf_;
@@ -90,9 +85,8 @@ class CPUPix {
 	unsigned char *texture_buf_ = NULL;
 
 public:
-	CPUPix(int window_w, int window_h, AA aa, bool record);
+	CPUPix(int window_w, int window_h, AA aa);
 	~CPUPix();
-	void BeforeDraw();
 	void AfterDraw();
 	void Enable(Flag flag);
 	void Disable(Flag flag);
