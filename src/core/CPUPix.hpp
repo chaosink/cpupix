@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vector>
 #include "glm/glm.hpp"
 
 #define VERSION_MAJOR 0
@@ -45,6 +46,29 @@ struct VertexOut {
 struct Vertex {
 	glm::vec4 position;
 };
+
+struct Fragment {
+	float z;
+	glm::vec3 position;
+	glm::vec3 normal;
+	glm::vec2 uv;
+};
+struct CorseSegment {
+	int x;
+	int length;
+	Fragment fragment;
+	Fragment fragment_delta;
+};
+struct Segment {
+	int x;
+	int length;
+	Fragment fragment;
+	Fragment fragment_delta;
+};
+struct Scanline {
+	std::vector<Segment> segment;
+};
+
 struct Triangle {
 	glm::ivec2 aabb[2];
 	Winding winding;
@@ -53,7 +77,6 @@ struct Triangle {
 struct FragmentIn {
 	glm::vec2 coord;
 	float z;
-
 	glm::vec3 position;
 	glm::vec3 normal;
 	glm::vec2 uv;
@@ -74,16 +97,17 @@ class CPUPix {
 	Face cull_face_ = Face::BACK;
 	Winding front_face_ = Winding::CCW;
 	int n_triangle_, n_vertex_;
-	Triangle *triangle_ = NULL;
+	Triangle *triangle_ = nullptr;
 	unsigned char *frame_buf_;
 	float *depth_buf_;
 
-	VertexIn *vertex_in_ = NULL;
-	VertexOut *vertex_out_ = NULL;
-	Vertex *vertex_buf_ = NULL;
-	Triangle *triangle_buf_ = NULL;
-	unsigned char *texture_buf_ = NULL;
+	VertexIn *vertex_in_ = nullptr;
+	VertexOut *vertex_out_ = nullptr;
+	Vertex *vertex_buf_ = nullptr;
+	Triangle *triangle_buf_ = nullptr;
+	unsigned char *texture_buf_ = nullptr;
 
+	Scanline *scanline_ = nullptr;
 public:
 	CPUPix(int window_w, int window_h, AA aa);
 	~CPUPix();

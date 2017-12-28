@@ -30,11 +30,17 @@ char bitmap[bitmap_size];
 void Clear(unsigned char *frame_buf, float *depth_buf);
 void NormalSpace(VertexIn *in, VertexOut *out, Vertex *v);
 void WindowSpace(Vertex *v);
+
 void AssemTriangle(Vertex *v, Triangle *triangle);
 void Rasterize(glm::ivec2 corner, glm::ivec2 dim, Vertex *v, VertexOut *va, float *depth_buf, unsigned char* frame_buf);
 void RasterizeMSAA(glm::ivec2 corner, glm::ivec2 dim, Vertex *v, VertexOut *va, float *depth_buf, unsigned char* frame_buf);
+
 void DrawCharater(int ch, int x0, int y0, bool ssaa, unsigned char *frame_buf);
 void DownSample(unsigned char *frame_buf, unsigned char *pbo_buf);
+
+// void ScanTriangle(Vertex *v, );
+// void GetSegment();
+// void DrawSegment();
 
 }
 
@@ -58,6 +64,8 @@ CPUPix::CPUPix(int window_w, int window_h, AA aa = AA::NOAA)
 	size_t r = fread(bitmap, 1, kernel::bitmap_size, font_file);
 	fclose(font_file);
 	memcpy(kernel::bitmap, bitmap, r);
+
+	scanline_ = new Scanline[window_h_];
 }
 
 CPUPix::~CPUPix() {
@@ -124,6 +132,8 @@ void CPUPix::Clear() {
 void CPUPix::Draw() {
 	kernel::NormalSpace(vertex_in_, vertex_out_, vertex_buf_);
 	kernel::WindowSpace(vertex_buf_);
+	// kernel::Segment();
+
 	kernel::AssemTriangle(vertex_buf_, triangle_buf_);
 	memcpy(triangle_, triangle_buf_, sizeof(Triangle) * n_triangle_);
 	for(int i = 0; i < n_triangle_; i++)

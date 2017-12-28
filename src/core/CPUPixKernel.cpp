@@ -54,6 +54,72 @@ void WindowSpace(Vertex *v) {
 	}
 }
 
+// void Redner::FSaveLine(
+// 	int x0, int y0,
+// 	int x1, int y1,
+// 	uc r0, uc g0, uc b0,
+// 	uc r1, uc g1, uc b1,
+// 	int border_x_l[], int border_x_r[],
+// 	Color border_color_l[], Color border_color_r[]
+// ) {
+// 	int dx = abs(x1 - x0), x = x0;
+// 	int dy = abs(y1 - y0), y = y0;
+// 	int d = 0;
+// 	glm::vec3 color0(r0, g0, b0), color1(r1, g1, b1);
+// 	glm::vec3 color_a, color;
+// 	if(dx > dy) {
+// 		color_a = (color1 - color0) / float(x1 - x0);
+// 		color = color_a * (float)x0 + (color0 * (float)x1 - color1 * (float)x0) / float(x1 - x0);
+// 	} else {
+// 		color_a = (color1 - color0) / float(y1 - y0);
+// 		color = color_a * (float)y0 + (color0 * (float)y1 - color1 * (float)y0) / float(y1 - y0);
+// 	}
+// 	while(x != x1 || y != y1) {
+
+// 		if(border_x_l[y - y0] > x) {
+// 			border_x_l[y - y0] = x;
+// 			border_color_l[y - y0].r = color.r;
+// 			border_color_l[y - y0].g = color.g;
+// 			border_color_l[y - y0].b = color.b;
+// 		}
+// 		if(border_x_r[y - y0] < x) {
+// 			border_x_r[y - y0] = x;
+// 			border_color_r[y - y0].r = color.r;
+// 			border_color_r[y - y0].g = color.g;
+// 			border_color_r[y - y0].b = color.b;
+// 		}
+// 		if(dx > dy) {
+// 			d += 2 * dy;
+// 			if(d > dx) {
+// 				y += y1 > y0 ? 1 : -1;
+// 				d -= 2 * dx;
+// 			}
+// 			x += x1 > x0 ? 1 : -1;
+// 			color += x1 > x0 > 0 ? color_a : -color_a;
+// 		} else {
+// 			d += 2 * dx;
+// 			if(d > dy){
+// 				x += x1 > x0 ? 1 : -1;
+// 				d -= 2 * dy;
+// 			}
+// 			y += y1 > y0 ? 1 : -1;
+// 			color += y1 > y0 > 0 ? color_a : -color_a;
+// 		}
+// 	}
+// 	if(border_x_l[y1 - y0] > x1) {
+// 		border_x_l[y1 - y0] = x1;
+// 		border_color_l[y1 - y0].r = r1;
+// 		border_color_l[y1 - y0].g = g1;
+// 		border_color_l[y1 - y0].b = b1;
+// 	}
+// 	if(border_x_r[y1 - y0] < x1) {
+// 		border_x_r[y1 - y0] = x1;
+// 		border_color_r[y1 - y0].r = r1;
+// 		border_color_r[y1 - y0].g = g1;
+// 		border_color_r[y1 - y0].b = b1;
+// 	}
+// }
+
 void AssemTriangle(Vertex *v, Triangle *triangle) {
 	#pragma omp parallel for
 	for(int x = 0; x < n_triangle; ++x) {
