@@ -207,6 +207,7 @@ void ScanTriangle(Vertex *v, VertexOut *vo, Scanline *scanline) {
 void DrawSegment(Scanline *scanline, float *depth_buf, unsigned char* frame_buf) {
 	#pragma omp parallel for
 	for(int y = 0; y < h; ++y) {
+		if(scanline[y].segment.size() == 0) continue;
 		std::vector<ScanNode> node;
 		node.reserve(scanline[y].segment.size() * 2);
 		for(size_t i = 0; i < scanline[y].segment.size(); ++i) {
@@ -225,26 +226,28 @@ void DrawSegment(Scanline *scanline, float *depth_buf, unsigned char* frame_buf)
 			return n0.x < n1.x;
 		});
 		std::unordered_set<Segment*> node_in;
-		Segment *segment;
+		Segment *segment = nullptr;
 		Fragment fragment;
 		for(int i = 0; i < node.size() - 1; ++i) {
 			if(node_in.empty()) { // node[i].in must be true
 				segment = node[i].segment;
 				fragment = segment->fragment;
 				node_in.insert(node[i].segment);
-			} if(!node[i].in) {
+			} else if(!node[i].in) {
 				node_in.erase(node[i].segment);
-				if(node[i].segment == segment) {
+				if(segment == node[i].segment) {
+					for(auto n: node_in) ;
 					// calculate new segment
 					// segment = nullptr if node_in is empty
 				}
 			} else {
+				node_in.insert(node[i].segment);
 				// calculate depth of node[i].segment and compare with depth of segment
 			}
 
 			if(segment)
 				for(int x = node[i].x; x < node[i + 1].x; ++x) {
-
+					// fragment
 				}
 		}
 
