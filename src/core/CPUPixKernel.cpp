@@ -195,7 +195,7 @@ void ScanTriangle(Vertex *v, VertexOut *vo, Scanline *scanline) {
 		int i = y - p[0].y;
 		scanline[y].segment.push_back(Segment{
 			border_x_l[i],
-			border_x_r[i] - border_x_l[i],
+			border_x_r[i] - border_x_l[i] + 1,
 			border_fragment_l[i],
 			(border_fragment_r[i] - border_fragment_l[i]) / (border_x_r[i] - border_x_l[i])
 		});
@@ -208,7 +208,7 @@ void DrawSegment(Scanline *scanline, float *depth_buf, unsigned char* frame_buf)
 		for(size_t i = 0; i < scanline[y].segment.size(); ++i) {
 			int x = scanline[y].segment[i].x;
 			Fragment fragment = scanline[y].segment[i].fragment;
-			for(int k = 0; k < scanline[y].segment[i].length;
+			for(int k = 0; k < scanline[y].segment[i].length - 1;
 					++k, ++x, fragment += scanline[y].segment[i].fragment_delta) {
 				if(x < 0 || x >= w) continue;
 				if(fragment.z > 1 || fragment.z < -1) continue; // need 3D clipping
