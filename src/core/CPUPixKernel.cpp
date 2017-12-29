@@ -1,6 +1,8 @@
 #include "CPUPix.hpp"
 
 #include <iostream>
+#include <algorithm>
+#include <unordered_set>
 using namespace std;
 
 namespace cpupix {
@@ -197,7 +199,7 @@ void ScanTriangle(Vertex *v, VertexOut *vo, Scanline *scanline) {
 			border_x_l[i],
 			border_x_r[i] - border_x_l[i],
 			border_fragment_l[i],
-			(border_fragment_r[i] - border_fragment_l[i]) / (border_x_r[i] - border_x_l[i] )
+			(border_fragment_r[i] - border_fragment_l[i]) / (border_x_r[i] - border_x_l[i])
 		});
 	}
 }
@@ -205,12 +207,52 @@ void ScanTriangle(Vertex *v, VertexOut *vo, Scanline *scanline) {
 void DrawSegment(Scanline *scanline, float *depth_buf, unsigned char* frame_buf) {
 	#pragma omp parallel for
 	for(int y = 0; y < h; ++y) {
+		std::vector<ScanNode> node;
+		node.reserve(scanline[y].segment.size() * 2);
+		for(size_t i = 0; i < scanline[y].segment.size(); ++i) {
+			node.push_back(ScanNode{
+				true,
+				scanline[y].segment[i].x,
+				&scanline[y].segment[i]
+			});
+			node.push_back(ScanNode{
+				false,
+				scanline[y].segment[i].x + scanline[y].segment[i].length + 1,
+				&scanline[y].segment[i]
+			});
+		}
+		std::sort(node.begin(), node.end(), [](ScanNode &n0, ScanNode &n1){
+			return n0.x < n1.x;
+		});
+		std::unordered_set<Segment*> node_in;
+		Segment *segment;
+		Fragment fragment;
+		for(int i = 0; i < node.size() - 1; ++i) {
+			if(node_in.empty()) { // node[i].in must be true
+				segment = node[i].segment;
+				fragment = segment->fragment;
+				node_in.insert(node[i].segment);
+			} if(!node[i].in) {
+				node_in.erase(node[i].segment);
+				if(node[i].segment == segment) {
+					// calculate new segment
+					// segment = nullptr if node_in is empty
+				}
+			} else {
+				// calculate depth of node[i].segment and compare with depth of segment
+			}
+
+			if(segment)
+				for(int x = node[i].x; x < node[i + 1].x; ++x) {
+
+				}
+		}
+
 		for(size_t i = 0; i < scanline[y].segment.size(); ++i) {
 			int x = scanline[y].segment[i].x - 1;
 			Fragment fragment = scanline[y].segment[i].fragment - scanline[y].segment[i].fragment_delta;
-			for(int k = 0; k < scanline[y].segment[i].length; ++k) {
-				x++;
-				fragment += scanline[y].segment[i].fragment_delta;
+			for(int k = 0; k < scanline[y].segment[i].length;
+					++k, ++x, fragment += scanline[y].segment[i].fragment_delta) {
 				if(x < 0 || x >= w) continue;
 				if(fragment.z > 1 || fragment.z < -1) continue; // need 3D clipping
 				int i_pixel = y * w + x;

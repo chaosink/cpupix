@@ -70,6 +70,7 @@ struct Triangle {
 	Winding winding;
 	bool empty;
 };
+
 struct Fragment {
 	float z;
 	float w;
@@ -100,6 +101,11 @@ struct Segment {
 	int length;
 	Fragment fragment;
 	Fragment fragment_delta;
+};
+struct ScanNode {
+	bool in;
+	int x;
+	Segment *segment;
 };
 struct Scanline {
 	std::vector<Segment> segment;
