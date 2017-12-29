@@ -45,11 +45,25 @@ struct VertexOut {
 	glm::vec3 position;
 	glm::vec3 normal;
 	glm::vec2 uv;
+	VertexOut operator+(const VertexOut &vo) const {
+		return VertexOut {
+			position + vo.position,
+			normal + vo.normal,
+			uv + vo.uv
+		};
+	}
 	VertexOut operator-(const VertexOut &vo) const {
 		return VertexOut {
 			position - vo.position,
 			normal - vo.normal,
 			uv - vo.uv
+		};
+	}
+	VertexOut operator*(const float a) const {
+		return VertexOut {
+			position * a,
+			normal * a,
+			uv * a
 		};
 	}
 	VertexOut operator/(const float a) const {
@@ -75,11 +89,25 @@ struct Fragment {
 	float z;
 	float w;
 	VertexOut vo;
+	Fragment operator+(const Fragment &f) {
+		return Fragment {
+			z + f.z,
+			w + f.w,
+			vo + f.vo,
+		};
+	}
 	Fragment operator-(const Fragment &f) {
 		return Fragment {
 			z - f.z,
 			w - f.w,
 			vo - f.vo,
+		};
+	}
+	Fragment operator*(const float a) const {
+		return Fragment {
+			z * a,
+			w * a,
+			vo * a
 		};
 	}
 	Fragment operator/(const float a) const {
@@ -101,6 +129,12 @@ struct Segment {
 	int length;
 	Fragment fragment;
 	Fragment fragment_delta;
+	float z(int xx) {
+		return fragment.z + fragment_delta.z * (xx - x);
+	}
+	Fragment f(int xx) {
+		return fragment + fragment_delta * (xx - x);
+	}
 };
 struct ScanNode {
 	bool in;

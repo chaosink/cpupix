@@ -197,7 +197,7 @@ void ScanTriangle(Vertex *v, VertexOut *vo, Scanline *scanline) {
 		int i = y - p[0].y;
 		scanline[y].segment.push_back(Segment{
 			border_x_l[i],
-			border_x_r[i] - border_x_l[i],
+			border_x_r[i] - border_x_l[i] + 1,
 			border_fragment_l[i],
 			(border_fragment_r[i] - border_fragment_l[i]) / (border_x_r[i] - border_x_l[i])
 		});
@@ -218,77 +218,82 @@ void DrawSegment(Scanline *scanline, float *depth_buf, unsigned char* frame_buf)
 			});
 			node.push_back(ScanNode{
 				false,
-				scanline[y].segment[i].x + scanline[y].segment[i].length + 1,
+				scanline[y].segment[i].x + scanline[y].segment[i].length,
 				&scanline[y].segment[i]
 			});
 		}
 		std::sort(node.begin(), node.end(), [](ScanNode &n0, ScanNode &n1){
-			return n0.x < n1.x;
+			return n0.x < n1.x || (n0.x == n1.x && !n0.in && n1.in);
 		});
-		std::unordered_set<Segment*> node_in;
+		std::unordered_set<Segment*> segment_in;
 		Segment *segment = nullptr;
 		Fragment fragment;
-		for(int i = 0; i < node.size() - 1; ++i) {
-			if(node_in.empty()) { // node[i].in must be true
+		for(size_t i = 0; i < node.size() - 1; ++i) {
+			if(segment_in.empty()) { // node[i].in must be true
 				segment = node[i].segment;
 				fragment = segment->fragment;
-				node_in.insert(node[i].segment);
-			} else if(!node[i].in) {
-				node_in.erase(node[i].segment);
-				if(segment == node[i].segment) {
-					for(auto n: node_in) ;
-					// calculate new segment
-					// segment = nullptr if node_in is empty
+				segment_in.insert(node[i].segment);
+			} else if(node[i].in) {
+				segment_in.insert(node[i].segment);
+				// compare z between node[i].segment and segment
+				if(node[i].segment->fragment.z < fragment.z) { // 1 - z0 > 1 - z1, z0 < z1
+					segment = node[i].segment;
+					fragment = segment->fragment;
 				}
 			} else {
-				node_in.insert(node[i].segment);
-				// calculate depth of node[i].segment and compare with depth of segment
-			}
-
-			if(segment)
-				for(int x = node[i].x; x < node[i + 1].x; ++x) {
-					// fragment
-				}
-		}
-
-		for(size_t i = 0; i < scanline[y].segment.size(); ++i) {
-			int x = scanline[y].segment[i].x;
-			Fragment fragment = scanline[y].segment[i].fragment;
-			for(int k = 0; k < scanline[y].segment[i].length;
-					++k, ++x, fragment += scanline[y].segment[i].fragment_delta) {
-				if(x < 0 || x >= w) continue;
-				if(fragment.z > 1 || fragment.z < -1) continue; // need 3D clipping
-				int i_pixel = y * w + x;
-				if(!depth_test || 1 - fragment.z > depth_buf[i_pixel]) {
-					depth_buf[i_pixel] = 1 - fragment.z;
-					glm::vec4 color;
-					FragmentIn fi{
-						glm::vec2(x, y),
-						fragment.z,
-						fragment.vo.position / fragment.w,
-						fragment.vo.normal / fragment.w,
-						fragment.vo.uv / fragment.w,
-					};
-					FragmentShader(fi, color);
-					glm::ivec4 icolor;
-					if(blend) {
-						float alpha = color.a;
-						glm::vec4 color_old = glm::vec4(
-							frame_buf[i_pixel * 3 + 0],
-							frame_buf[i_pixel * 3 + 1],
-							frame_buf[i_pixel * 3 + 2],
-							0.f
-						);
-						icolor = color * 255.f * alpha + color_old * (1.f - alpha);
-					} else {
-						icolor = color * 255.f;
+				segment_in.erase(node[i].segment);
+				int x = node[i].x;
+				if(segment == node[i].segment) {
+					segment = nullptr; // segment = nullptr if segment_in is empty
+					// calculate new segment
+					float z = 0;
+					for(auto s: segment_in) {
+						float segment_z = 1 - s->z(x);
+						if(segment_z > z) {
+							z = segment_z;
+							segment = s;
+						}
 					}
-					icolor = glm::clamp(icolor, glm::ivec4(0), glm::ivec4(255));
-					frame_buf[i_pixel * 3 + 0] = icolor.r;
-					frame_buf[i_pixel * 3 + 1] = icolor.g;
-					frame_buf[i_pixel * 3 + 2] = icolor.b;
+					if(segment) fragment = segment->f(x);
 				}
 			}
+			if(segment)
+				for(int x = node[i].x; x < node[i + 1].x;
+						++x, fragment += segment->fragment_delta) {
+					if(x < 0 || x >= w) continue;
+					if(fragment.z > 1 || fragment.z < -1) continue; // need 3D clipping
+					int i_pixel = y * w + x;
+					if(!depth_test || 1 - fragment.z > depth_buf[i_pixel]) {
+						depth_buf[i_pixel] = 1 - fragment.z;
+						glm::vec4 color;
+						FragmentIn fi{
+							glm::vec2(x, y),
+							fragment.z,
+							fragment.vo.position / fragment.w,
+							fragment.vo.normal / fragment.w,
+							fragment.vo.uv / fragment.w,
+						};
+						FragmentShader(fi, color);
+						glm::ivec4 icolor;
+						if(blend) {
+							float alpha = color.a;
+							glm::vec4 color_old = glm::vec4(
+								frame_buf[i_pixel * 3 + 0],
+								frame_buf[i_pixel * 3 + 1],
+								frame_buf[i_pixel * 3 + 2],
+								0.f
+							);
+							icolor = color * 255.f * alpha + color_old * (1.f - alpha);
+						} else {
+							icolor = color * 255.f;
+						}
+						icolor = glm::clamp(icolor, glm::ivec4(0), glm::ivec4(255));
+						frame_buf[i_pixel * 3 + 0] = icolor.r;
+						frame_buf[i_pixel * 3 + 1] = icolor.g;
+						frame_buf[i_pixel * 3 + 2] = icolor.b;
+					}
+				}
+			// if(segment_in.size() != 1) cout << "er" << endl;
 		}
 		scanline[y].segment.clear();
 	}
