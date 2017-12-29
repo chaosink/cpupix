@@ -218,12 +218,14 @@ void DrawSegment(Scanline *scanline, float *depth_buf, unsigned char* frame_buf)
 			});
 			node.push_back(ScanNode{
 				false,
-				scanline[y].segment[i].x + scanline[y].segment[i].length,
+				scanline[y].segment[i].x + scanline[y].segment[i].length - 1,
 				&scanline[y].segment[i]
 			});
 		}
-		std::sort(node.begin(), node.end(), [](ScanNode &n0, ScanNode &n1){
-			return n0.x < n1.x || (n0.x == n1.x && !n0.in && n1.in);
+		std::sort(node.begin(), node.end(), [](const ScanNode &n0, const ScanNode &n1){
+			return n0.x < n1.x
+			|| (n0.x == n1.x && !n0.in && n1.in && n0.segment != n1.segment)
+			|| (n0.x == n1.x && n0.in && !n1.in && n0.segment == n1.segment);
 		});
 		std::unordered_set<Segment*> segment_in;
 		Segment *segment = nullptr;
@@ -293,7 +295,15 @@ void DrawSegment(Scanline *scanline, float *depth_buf, unsigned char* frame_buf)
 						frame_buf[i_pixel * 3 + 2] = icolor.b;
 					}
 				}
-			// if(segment_in.size() != 1) cout << "er" << endl;
+			if(segment_in.size() == 2) {
+				cout << segment_in.size() << "\t";
+				for(int i = 0; i < scanline[y].segment.size(); ++i)
+					cout << scanline[y].segment[i].x << " ";
+				cout << endl;
+				for(int i = 0; i < node.size(); ++i)
+					cout << "{" << node[i].x << "," << node[i].in << "} ";
+				cout << endl;
+			}
 		}
 		scanline[y].segment.clear();
 	}
