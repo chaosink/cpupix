@@ -87,9 +87,8 @@ CPUPix::CPUPix(int window_w, int window_h, AA aa = AA::NOAA)
 }
 
 CPUPix::~CPUPix() {
-	delete[] triangle_;
-	delete[] frame_;
-	if(aa_ != AA::NOAA) delete[] depth_buf_;
+	if(aa_ != AA::NOAA) delete[] frame_;
+	delete[] depth_buf_;
 	delete[] frame_buf_;
 }
 
@@ -151,12 +150,12 @@ void CPUPix::Draw() {
 			if(!cull_ || ((cull_face_ != Face::FRONT_AND_BACK)
 			&& ((triangle_buf_[i].winding == front_face_) != (cull_face_ == Face::FRONT)))) {
 				if(aa_ == AA::MSAA) {
-					glm::ivec2 v0 = triangle_[i].aabb[0] / 2, v1 = triangle_[i].aabb[1] / 2;
+					glm::ivec2 v0 = triangle_buf_[i].aabb[0] / 2, v1 = triangle_buf_[i].aabb[1] / 2;
 					glm::ivec2 dim = v1 - v0 + 1;
 					kernel::RasterizeMSAA(v0, dim, vertex_buf_ + i * 3, vertex_out_ + i * 3, depth_buf_, frame_buf_);
 				} else {
-					glm::ivec2 dim = triangle_[i].aabb[1] - triangle_[i].aabb[0] + 1;
-					kernel::Rasterize(triangle_[i].aabb[0], dim, vertex_buf_ + i * 3, vertex_out_ + i * 3, depth_buf_, frame_buf_);
+					glm::ivec2 dim = triangle_buf_[i].aabb[1] - triangle_buf_[i].aabb[0] + 1;
+					kernel::Rasterize(triangle_buf_[i].aabb[0], dim, vertex_buf_ + i * 3, vertex_out_ + i * 3, depth_buf_, frame_buf_);
 				}
 			}
 	if(aa_ != AA::NOAA) kernel::DownSample(frame_buf_, frame_);
@@ -192,9 +191,6 @@ void CPUPix::VertexData(int size, float *position, float *normal, float *uv) {
 
 	delete[] triangle_buf_;
 	triangle_buf_ = new Triangle[n_triangle_];
-
-	delete[] triangle_;
-	triangle_ = new Triangle[n_triangle_];
 }
 
 void CPUPix::MVP(glm::mat4 &mvp) {
