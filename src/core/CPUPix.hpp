@@ -33,6 +33,9 @@ enum class Flag : unsigned char {
 	CULL_FACE,
 };
 
+struct Vertex {
+	glm::vec4 position;
+};
 struct VertexIn {
 	glm::vec3 position;
 	glm::vec3 normal;
@@ -42,25 +45,11 @@ struct VertexOut {
 	glm::vec3 position;
 	glm::vec3 normal;
 	glm::vec2 uv;
-	VertexOut operator-() const {
-		return VertexOut {
-				-position,
-				-normal,
-				-uv
-		};
-	}
 	VertexOut operator-(const VertexOut &vo) const {
 		return VertexOut {
 			position - vo.position,
 			normal - vo.normal,
 			uv - vo.uv
-		};
-	}
-	VertexOut operator+(const VertexOut &vo) const {
-		return VertexOut {
-			position + vo.position,
-			normal + vo.normal,
-			uv + vo.uv
 		};
 	}
 	VertexOut operator/(const float a) const {
@@ -70,13 +59,6 @@ struct VertexOut {
 			uv / a
 		};
 	}
-	VertexOut operator*(const float a) const {
-		return VertexOut {
-			position * a,
-			normal * a,
-			uv * a
-		};
-	}
 	VertexOut& operator+=(const VertexOut &vo) {
 		position += vo.position;
 		normal += vo.normal;
@@ -84,28 +66,14 @@ struct VertexOut {
 		return *this;
 	}
 };
-struct Vertex {
-	glm::vec4 position;
+struct Triangle {
+	Winding winding;
+	bool empty;
 };
-
 struct Fragment {
 	float z;
 	float w;
 	VertexOut vo;
-	Fragment operator-() {
-		return Fragment {
-			-z,
-			-w,
-			-vo,
-		};
-	}
-	Fragment operator+(const Fragment &f) {
-		return Fragment {
-			z + f.z,
-			w + f.w,
-			vo + f.vo,
-		};
-	}
 	Fragment operator-(const Fragment &f) {
 		return Fragment {
 			z - f.z,
@@ -120,24 +88,12 @@ struct Fragment {
 			vo / a
 		};
 	}
-	Fragment operator*(const float a) const {
-		return Fragment {
-			z * a,
-			w * a,
-			vo * a
-		};
-	}
 	Fragment& operator+=(const Fragment &f) {
 		z += f.z;
 		w += f.w;
 		vo += f.vo;
 		return *this;
 	}
-};
-struct Pixel {
-	int x;
-	bool in;
-	Fragment fragment;
 };
 struct Segment {
 	int x;
@@ -147,12 +103,6 @@ struct Segment {
 };
 struct Scanline {
 	std::vector<Segment> segment;
-};
-
-struct Triangle {
-	glm::ivec2 aabb[2];
-	Winding winding;
-	bool empty;
 };
 struct FragmentIn {
 	glm::vec2 coord;

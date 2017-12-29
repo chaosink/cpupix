@@ -89,23 +89,22 @@ int main(int argc, char *argv[]) {
 	};
 	pix.Lights(2, light);
 
-	Model model(argv[1]);
+	Model model(window, argv[1]);
 	pix.VertexData(model.n_vertex(), model.vertex(), model.normal(), model.uv());
 
 	Texture texture("texture/texture.jpg");
 	pix.Texture(texture.data(), texture.w(), texture.h(), false); // gamma_correction = false
 
-	double time = glfwGetTime();
-	Camera camera(window, window_w, window_h, time);
-	FPS fps(time);
-	Toggle toggle(window, GLFW_KEY_T, true); // init_state = true
+	Camera camera(window, window_w, window_h);
+	FPS fps;
+	Toggle toggle(window, GLFW_KEY_R, true); // init_state = true
 	Video video(window_w, window_h);
 	while(glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS && !glfwWindowShouldClose(window)) {
-		time = glfwGetTime();
+		double time = glfwGetTime();
 
 		pix.Clear();
 
-		glm::mat4 m;
+		glm::mat4 m = model.Update(time);
 		glm::mat4 vp = camera.Update(time);
 		glm::mat4 mvp = vp * m;
 		pix.MVP(mvp);
