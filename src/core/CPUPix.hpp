@@ -136,7 +136,6 @@ class CPUPix {
 	Face cull_face_ = Face::BACK;
 	Winding front_face_ = Winding::CCW;
 	int n_triangle_, n_vertex_;
-	Triangle *triangle_ = nullptr;
 	Scanline *scanline_ = nullptr;
 	unsigned char *frame_buf_;
 	float *depth_buf_;

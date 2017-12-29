@@ -90,9 +90,8 @@ CPUPix::CPUPix(int window_w, int window_h, AA aa = AA::NOAA)
 }
 
 CPUPix::~CPUPix() {
-	delete[] triangle_;
-	delete[] frame_;
-	if(aa_ != AA::NOAA) delete[] depth_buf_;
+	if(aa_ != AA::NOAA) delete[] frame_;
+	delete[] depth_buf_;
 	delete[] frame_buf_;
 	delete[] scanline_;
 }
@@ -195,9 +194,6 @@ void CPUPix::VertexData(int size, float *position, float *normal, float *uv) {
 
 	delete[] triangle_buf_;
 	triangle_buf_ = new Triangle[n_triangle_];
-
-	delete[] triangle_;
-	triangle_ = new Triangle[n_triangle_];
 }
 
 void CPUPix::MVP(glm::mat4 &mvp) {
