@@ -249,8 +249,8 @@ void DrawSegment(Scanline *scanline, float *depth_buf, unsigned char* frame_buf)
 		}
 
 		for(size_t i = 0; i < scanline[y].segment.size(); ++i) {
-			int x = scanline[y].segment[i].x - 1;
-			Fragment fragment = scanline[y].segment[i].fragment - scanline[y].segment[i].fragment_delta;
+			int x = scanline[y].segment[i].x;
+			Fragment fragment = scanline[y].segment[i].fragment;
 			for(int k = 0; k < scanline[y].segment[i].length;
 					++k, ++x, fragment += scanline[y].segment[i].fragment_delta) {
 				if(x < 0 || x >= w) continue;
