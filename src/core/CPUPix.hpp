@@ -96,7 +96,6 @@ class CPUPix {
 public:
 	CPUPix(int window_w, int window_h, AA aa);
 	~CPUPix();
-	void AfterDraw();
 	void Enable(Flag flag);
 	void Disable(Flag flag);
 	void CullFace(Face face);

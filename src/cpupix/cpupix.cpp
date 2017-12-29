@@ -75,9 +75,12 @@ int main(int argc, char *argv[]) {
 
 	CPUPix pix(window_w, window_h, AA::NOAA);
 	pix.ClearColor(0.08f, 0.16f, 0.24f, 1.f);
+	// pix.Disable(Flag::DEPTH_TEST);
+	// pix.Enable(Flag::BLEND);
 	// pix.Disable(Flag::CULL_FACE);
 	// pix.CullFace(Face::FRONT);
 	// pix.FrontFace(Winding::CW);
+
 
 	Light light[2]{
 		 5.f, 4.f, 3.f, // position
@@ -121,7 +124,6 @@ int main(int argc, char *argv[]) {
 
 		pix.Draw();
 		pix.DrawFPS(fps.Update(time) + 0.5f);
-		pix.AfterDraw();
 
 		UpdateGL(window, window_w, window_h, pix.frame());
 		if(record) video.Add(pix.frame());

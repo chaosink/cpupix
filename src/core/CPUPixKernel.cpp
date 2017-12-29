@@ -233,7 +233,7 @@ void RasterizeMSAA(glm::ivec2 corner, glm::ivec2 dim, Vertex *v, VertexOut *va, 
 		}
 }
 
-void DrawCharater(int ch, int x0, int y0, bool aa, unsigned char *frame_buf) {
+void DrawCharater(int ch, int x0, int y0, unsigned char *frame_buf) {
 	#pragma omp parallel for
 	for(int y = 0; y < 16; ++y)
 		for(int x = 0; x < 16; ++x) {
@@ -241,19 +241,9 @@ void DrawCharater(int ch, int x0, int y0, bool aa, unsigned char *frame_buf) {
 			int offset = ch * 32;
 			char c = bitmap[offset + (15 - y) * 2 + x / 8];
 			if(!(c & bit[x % 8])) continue;
-			if(aa) {
-				int p0 = (((y + y0) * 2 + 0) * w + (x + x0) * 2 + 0) * 3;
-				int p1 = (((y + y0) * 2 + 0) * w + (x + x0) * 2 + 1) * 3;
-				int p2 = (((y + y0) * 2 + 1) * w + (x + x0) * 2 + 0) * 3;
-				int p3 = (((y + y0) * 2 + 1) * w + (x + x0) * 2 + 1) * 3;
-				frame_buf[p0 + 0] = frame_buf[p1 + 0] = frame_buf[p2 + 0] = frame_buf[p3 + 0] = 255 - clear_color[0];
-				frame_buf[p0 + 1] = frame_buf[p1 + 1] = frame_buf[p2 + 1] = frame_buf[p3 + 1] = 255 - clear_color[1];
-				frame_buf[p0 + 2] = frame_buf[p1 + 2] = frame_buf[p2 + 2] = frame_buf[p3 + 2] = 255 - clear_color[2];
-			} else {
-				frame_buf[i_pixel * 3 + 0] = 255 - clear_color[0];
-				frame_buf[i_pixel * 3 + 1] = 255 - clear_color[1];
-				frame_buf[i_pixel * 3 + 2] = 255 - clear_color[2];
-			}
+			frame_buf[i_pixel * 3 + 0] = 255 - clear_color[0];
+			frame_buf[i_pixel * 3 + 1] = 255 - clear_color[1];
+			frame_buf[i_pixel * 3 + 2] = 255 - clear_color[2];
 		}
 }
 
