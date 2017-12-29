@@ -197,7 +197,7 @@ void ScanTriangle(Vertex *v, VertexOut *vo, Scanline *scanline) {
 			border_x_l[i],
 			border_x_r[i] - border_x_l[i],
 			border_fragment_l[i],
-			(border_fragment_r[i] - border_fragment_l[i]) / (border_x_r[i] - border_x_l[i] )
+			(border_fragment_r[i] - border_fragment_l[i]) / (border_x_r[i] - border_x_l[i])
 		});
 	}
 }
@@ -206,11 +206,10 @@ void DrawSegment(Scanline *scanline, float *depth_buf, unsigned char* frame_buf)
 	#pragma omp parallel for
 	for(int y = 0; y < h; ++y) {
 		for(size_t i = 0; i < scanline[y].segment.size(); ++i) {
-			int x = scanline[y].segment[i].x - 1;
-			Fragment fragment = scanline[y].segment[i].fragment - scanline[y].segment[i].fragment_delta;
-			for(int k = 0; k < scanline[y].segment[i].length; ++k) {
-				x++;
-				fragment += scanline[y].segment[i].fragment_delta;
+			int x = scanline[y].segment[i].x;
+			Fragment fragment = scanline[y].segment[i].fragment;
+			for(int k = 0; k < scanline[y].segment[i].length;
+					++k, ++x, fragment += scanline[y].segment[i].fragment_delta) {
 				if(x < 0 || x >= w) continue;
 				if(fragment.z > 1 || fragment.z < -1) continue; // need 3D clipping
 				int i_pixel = y * w + x;
