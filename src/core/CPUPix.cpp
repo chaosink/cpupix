@@ -31,11 +31,9 @@ char bitmap[bitmap_size];
 void Clear(unsigned char *frame_buf, float *depth_buf);
 void NormalSpace(VertexIn *in, VertexOut *out, Vertex *v);
 void WindowSpace(Vertex *v);
-
 void AssemTriangle(Vertex *v, Triangle *triangle);
 void ScanTriangle(Vertex *v, VertexOut *vo, Scanline *scanline_);
 void DrawSegment(Scanline *scanline_, float *depth_buf, unsigned char* frame_buf);
-
 void DrawCharater(int ch, int x0, int y0, bool ssaa, unsigned char *frame_buf);
 void DownSample(unsigned char *frame_buf, unsigned char *pbo_buf);
 
