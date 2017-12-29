@@ -1,5 +1,8 @@
 #include "CPUPix.hpp"
 
+#include <iostream>
+using namespace std;
+
 namespace cpupix {
 
 namespace kernel {
@@ -54,72 +57,6 @@ void WindowSpace(Vertex *v) {
 	}
 }
 
-// void Redner::FSaveLine(
-// 	int x0, int y0,
-// 	int x1, int y1,
-// 	uc r0, uc g0, uc b0,
-// 	uc r1, uc g1, uc b1,
-// 	int border_x_l[], int border_x_r[],
-// 	Color border_color_l[], Color border_color_r[]
-// ) {
-// 	int dx = abs(x1 - x0), x = x0;
-// 	int dy = abs(y1 - y0), y = y0;
-// 	int d = 0;
-// 	glm::vec3 color0(r0, g0, b0), color1(r1, g1, b1);
-// 	glm::vec3 color_a, color;
-// 	if(dx > dy) {
-// 		color_a = (color1 - color0) / float(x1 - x0);
-// 		color = color_a * (float)x0 + (color0 * (float)x1 - color1 * (float)x0) / float(x1 - x0);
-// 	} else {
-// 		color_a = (color1 - color0) / float(y1 - y0);
-// 		color = color_a * (float)y0 + (color0 * (float)y1 - color1 * (float)y0) / float(y1 - y0);
-// 	}
-// 	while(x != x1 || y != y1) {
-
-// 		if(border_x_l[y - y0] > x) {
-// 			border_x_l[y - y0] = x;
-// 			border_color_l[y - y0].r = color.r;
-// 			border_color_l[y - y0].g = color.g;
-// 			border_color_l[y - y0].b = color.b;
-// 		}
-// 		if(border_x_r[y - y0] < x) {
-// 			border_x_r[y - y0] = x;
-// 			border_color_r[y - y0].r = color.r;
-// 			border_color_r[y - y0].g = color.g;
-// 			border_color_r[y - y0].b = color.b;
-// 		}
-// 		if(dx > dy) {
-// 			d += 2 * dy;
-// 			if(d > dx) {
-// 				y += y1 > y0 ? 1 : -1;
-// 				d -= 2 * dx;
-// 			}
-// 			x += x1 > x0 ? 1 : -1;
-// 			color += x1 > x0 > 0 ? color_a : -color_a;
-// 		} else {
-// 			d += 2 * dx;
-// 			if(d > dy){
-// 				x += x1 > x0 ? 1 : -1;
-// 				d -= 2 * dy;
-// 			}
-// 			y += y1 > y0 ? 1 : -1;
-// 			color += y1 > y0 > 0 ? color_a : -color_a;
-// 		}
-// 	}
-// 	if(border_x_l[y1 - y0] > x1) {
-// 		border_x_l[y1 - y0] = x1;
-// 		border_color_l[y1 - y0].r = r1;
-// 		border_color_l[y1 - y0].g = g1;
-// 		border_color_l[y1 - y0].b = b1;
-// 	}
-// 	if(border_x_r[y1 - y0] < x1) {
-// 		border_x_r[y1 - y0] = x1;
-// 		border_color_r[y1 - y0].r = r1;
-// 		border_color_r[y1 - y0].g = g1;
-// 		border_color_r[y1 - y0].b = b1;
-// 	}
-// }
-
 void AssemTriangle(Vertex *v, Triangle *triangle) {
 	#pragma omp parallel for
 	for(int x = 0; x < n_triangle; ++x) {
@@ -131,8 +68,6 @@ void AssemTriangle(Vertex *v, Triangle *triangle) {
 			v_min = glm::min(glm::min(p0, p1), p2),
 			v_max = glm::max(glm::max(p0, p1), p2);
 		glm::ivec2
-			c0 = glm::ivec2(0, 0),
-			c1 = glm::ivec2(w - 1, h - 1),
 			iv_min = v_min + 0.5f,
 			iv_max = v_max + 0.5f;
 
@@ -140,68 +75,156 @@ void AssemTriangle(Vertex *v, Triangle *triangle) {
 			|| (v[0].position.z > 1 && v[1].position.z > 1 && v[2].position.z > 1)
 			|| (v[0].position.z <-1 && v[1].position.z <-1 && v[2].position.z <-1));
 		triangle[x].winding = Winding((p1.x - p0.x) * (p2.y - p1.y) - (p1.y - p0.y) * (p2.x - p1.x) < 0);
-
-		iv_min = glm::clamp(iv_min, c0, c1);
-		iv_max = glm::clamp(iv_max, c0, c1);
-
-		triangle[x].aabb[0] = iv_min;
-		triangle[x].aabb[1] = iv_max;
 	}
 }
 
-void Interpolate(Vertex *v, VertexOut *vo, glm::vec3 &e, FragmentIn *f) {
-	float w = 1.f / (
-		e.x * v[0].position.w +
-		e.y * v[1].position.w +
-		e.z * v[2].position.w);
+void AssemSegment(
+	int x0, int y0,
+	int x1, int y1,
+	Fragment &&f0, Fragment &&f1,
+	int border_x_l[], int border_x_r[],
+	Fragment border_fragment_l[], Fragment border_fragment_r[]
+) {
+	int x = x0, dx = x1 - x0;
+	int y = y0, dy = y1 - y0; // dy >= 0 is guaranteed
+	if(dy == 0) return;
 
-	f->position = (
-		vo[0].position * e.x +
-		vo[1].position * e.y +
-		vo[2].position * e.z) * w;
-	f->normal = (
-		vo[0].normal * e.x +
-		vo[1].normal * e.y +
-		vo[2].normal * e.z) * w;
-	f->uv = (
-		vo[0].uv * e.x +
-		vo[1].uv * e.y +
-		vo[2].uv * e.z) * w;
+	Fragment f = f0, df = (f1 - f0) / dy;
 
-	f->z =
-		e.x * v[0].position.z +
-		e.y * v[1].position.z +
-		e.z * v[2].position.z;
+	float xx = x;
+	float dxx = dx * 1.f / dy;
+
+	// int d = 0; // Bresenham
+	// if(dx > dy) {
+	// 	df = (f1 - f0) / float(x1 - x0);
+	// 	f = f0;
+	// } else {
+	// 	df = (f1 - f0) / float(y1 - y0);
+	// 	f = f0;
+	// }
+
+	while(y != y1) {
+		if(border_x_l[y - y0] > x) {
+			border_x_l[y - y0] = x;
+			border_fragment_l[y - y0] = f;
+		}
+		if(border_x_r[y - y0] < x) {
+			border_x_r[y - y0] = x;
+			border_fragment_r[y - y0] = f;
+		}
+		y++;
+		xx += dxx;
+		x = xx;
+		f += df;
+		// if(dx > dy) { // Bresenham
+		// 	d += 2 * dy;
+		// 	if(d > dx) {
+		// 		y += y1 > y0 ? 1 : -1;
+		// 		d -= 2 * dx;
+		// 	}
+		// 	x += x1 > x0 ? 1 : -1;
+		// 	f += x1 > x0 ? df : -df;
+		// } else {
+		// 	d += 2 * dx;
+		// 	if(d > dy){
+		// 		x += x1 > x0 ? 1 : -1;
+		// 		d -= 2 * dy;
+		// 	}
+		// 	y += y1 > y0 ? 1 : -1;
+		// 	f += y1 > y0 ? df : -df;
+		// }
+	}
+	if(border_x_l[y1 - y0] > x1) {
+		border_x_l[y1 - y0] = x1;
+		border_fragment_l[y1 - y0] = f1;
+	}
+	if(border_x_r[y1 - y0] < x1) {
+		border_x_r[y1 - y0] = x1;
+		border_fragment_r[y1 - y0] = f1;
+	}
 }
 
-void Rasterize(glm::ivec2 corner, glm::ivec2 dim, Vertex *v, VertexOut *va, float *depth_buf, unsigned char* frame_buf) {
+void ScanTriangle(Vertex *v, VertexOut *vo, Scanline *scanline) {
+	if(v[0].position.y > v[1].position.y) {
+		std::swap(v[0], v[1]);
+		std::swap(vo[0], vo[1]);
+	}
+	if(v[0].position.y > v[2].position.y) {
+		std::swap(v[0], v[2]);
+		std::swap(vo[0], vo[2]);
+	}
+	if(v[1].position.y > v[2].position.y) {
+		std::swap(v[1], v[2]);
+		std::swap(vo[1], vo[2]);
+	}
+	glm::ivec2 p[3] = {
+		glm::ivec2(v[0].position.x, v[0].position.y),
+		glm::ivec2(v[1].position.x, v[1].position.y),
+		glm::ivec2(v[2].position.x, v[2].position.y)};
+	if(p[0].y >= h || p[2].y < 0) return;
+
+	int border_x_l[p[2].y - p[0].y + 1], border_x_r[p[2].y - p[0].y + 1];
+	Fragment border_fragment_l[p[2].y - p[0].y + 1], border_fragment_r[p[2].y - p[0].y + 1];
+	std::fill(border_x_r, border_x_r + p[2].y - p[0].y + 1, -1);
+	std::fill(border_x_l, border_x_l + p[2].y - p[0].y + 1, w);
+
+	AssemSegment(
+		p[0].x, p[0].y,
+		p[1].x, p[1].y,
+		Fragment{v[0].position.z, v[0].position.w, vo[0]},
+		Fragment{v[1].position.z, v[1].position.w, vo[1]},
+		border_x_l, border_x_r,
+		border_fragment_l, border_fragment_r);
+	AssemSegment(
+		p[0].x, p[0].y,
+		p[2].x, p[2].y,
+		Fragment{v[0].position.z, v[0].position.w, vo[0]},
+		Fragment{v[2].position.z, v[2].position.w, vo[2]},
+		border_x_l, border_x_r,
+		border_fragment_l, border_fragment_r);
+	AssemSegment(
+		p[1].x, p[1].y,
+		p[2].x, p[2].y,
+		Fragment{v[1].position.z, v[1].position.w, vo[1]},
+		Fragment{v[2].position.z, v[2].position.w, vo[2]},
+		border_x_l + p[1].y - p[0].y, border_x_r + p[1].y - p[0].y,
+		border_fragment_l + p[1].y - p[0].y, border_fragment_r + p[1].y - p[0].y);
+
+	for(int y = p[0].y; y <= p[2].y; ++y) {
+		if(y < 0 || y >= h) continue;
+		int i = y - p[0].y;
+		scanline[y].segment.push_back(Segment{
+			border_x_l[i],
+			border_x_r[i] - border_x_l[i],
+			border_fragment_l[i],
+			(border_fragment_r[i] - border_fragment_l[i]) / (border_x_r[i] - border_x_l[i] )
+		});
+	}
+}
+
+void DrawSegment(Scanline *scanline, float *depth_buf, unsigned char* frame_buf) {
 	#pragma omp parallel for
-	for(int j = 0; j < dim.y; ++j)
-		for(int i = 0; i < dim.x; ++i) {
-			int x = i + corner.x;
-			int y = j + corner.y;
-			int i_pixel = y * w + x;
-
-			glm::vec2
-				p0 = glm::vec2(v[0].position.x, v[0].position.y),
-				p1 = glm::vec2(v[1].position.x, v[1].position.y),
-				p2 = glm::vec2(v[2].position.x, v[2].position.y);
-			glm::vec2 d01 = p1 - p0, d12 = p2 - p1, d20 = p0 - p2;
-			float e0 = glm::dot(d12, glm::vec2(y + 0.5f - p1.y, p1.x - x - 0.5f));
-			float e1 = glm::dot(d20, glm::vec2(y + 0.5f - p2.y, p2.x - x - 0.5f));
-			float e2 = glm::dot(d01, glm::vec2(y + 0.5f - p0.y, p0.x - x - 0.5f));
-
-			if((e0 >= 0 && e1 >= 0 && e2 >= 0)
-			|| (e0 <= 0 && e1 <= 0 && e2 <= 0)) {
-				FragmentIn fragment;
-				fragment.coord = glm::vec2(x, y);
-				glm::vec3 e = glm::vec3(e0, e1, e2) / (e0 + e1 + e2);
-				Interpolate(v, va, e, &fragment);
+	for(int y = 0; y < h; ++y) {
+		for(size_t i = 0; i < scanline[y].segment.size(); ++i) {
+			int x = scanline[y].segment[i].x - 1;
+			Fragment fragment = scanline[y].segment[i].fragment - scanline[y].segment[i].fragment_delta;
+			for(int k = 0; k < scanline[y].segment[i].length; ++k) {
+				x++;
+				fragment += scanline[y].segment[i].fragment_delta;
+				if(x < 0 || x >= w) continue;
 				if(fragment.z > 1 || fragment.z < -1) continue; // need 3D clipping
+				int i_pixel = y * w + x;
 				if(!depth_test || 1 - fragment.z > depth_buf[i_pixel]) {
 					depth_buf[i_pixel] = 1 - fragment.z;
 					glm::vec4 color;
-					FragmentShader(fragment, color);
+					FragmentIn fi{
+						glm::vec2(x, y),
+						fragment.z,
+						fragment.vo.position / fragment.w,
+						fragment.vo.normal / fragment.w,
+						fragment.vo.uv / fragment.w,
+					};
+					FragmentShader(fi, color);
 					glm::ivec4 icolor;
 					if(blend) {
 						float alpha = color.a;
@@ -222,81 +245,8 @@ void Rasterize(glm::ivec2 corner, glm::ivec2 dim, Vertex *v, VertexOut *va, floa
 				}
 			}
 		}
-}
-
-void RasterizeMSAA(glm::ivec2 corner, glm::ivec2 dim, Vertex *v, VertexOut *va, float *depth_buf, unsigned char* frame_buf) {
-	#pragma omp parallel for
-	for(int j = 0; j < dim.y; ++j)
-		for(int i = 0; i < dim.x; ++i) {
-			int x = (i + corner.x) * 2;
-			int y = (j + corner.y) * 2;
-
-			float e0, e1, e2;
-
-			glm::vec2
-				p0 = glm::vec2(v[0].position.x, v[0].position.y),
-				p1 = glm::vec2(v[1].position.x, v[1].position.y),
-				p2 = glm::vec2(v[2].position.x, v[2].position.y);
-			glm::vec2 d01 = p1 - p0, d12 = p2 - p1, d20 = p0 - p2;
-			bool cover[2][2];
-			bool covered = false;
-			for(int i = 0; i < 2; i++)
-				for(int j = 0; j < 2; j++) {
-					cover[i][j] = false;
-					int xx = x + j, yy = y + i;
-					int i_pixel = yy * w + xx;
-					e0 = glm::dot(d12, glm::vec2(yy + 0.5f - p1.y, p1.x - xx - 0.5f));
-					e1 = glm::dot(d20, glm::vec2(yy + 0.5f - p2.y, p2.x - xx - 0.5f));
-					e2 = glm::dot(d01, glm::vec2(yy + 0.5f - p0.y, p0.x - xx - 0.5f));
-					if((e0 >= 0 && e1 >= 0 && e2 >= 0)
-					|| (e0 <= 0 && e1 <= 0 && e2 <= 0)) {
-						glm::vec3 e = glm::vec3(e0, e1, e2) / (e0 + e1 + e2);
-						float z = e.x * v[0].position.z + e.y * v[1].position.z + e.z * v[2].position.z;
-						if(z > 1 || z < -1) continue;
-						if(!depth_test || 1 - z > depth_buf[i_pixel]) {
-							depth_buf[i_pixel] = 1 - z;
-							cover[i][j] = covered = true;
-						}
-					}
-				}
-			if(!covered) continue;
-
-			float xx = x + 0.5f, yy = y + 0.5f;
-			e0 = glm::dot(d12, glm::vec2(yy + 0.5f - p1.y, p1.x - xx - 0.5f));
-			e1 = glm::dot(d20, glm::vec2(yy + 0.5f - p2.y, p2.x - xx - 0.5f));
-			e2 = glm::dot(d01, glm::vec2(yy + 0.5f - p0.y, p0.x - xx - 0.5f));
-
-			FragmentIn fragment;
-			fragment.coord = glm::vec2(xx, yy);
-			glm::vec3 e = glm::vec3(e0, e1, e2) / (e0 + e1 + e2);
-			Interpolate(v, va, e, &fragment);
-			// if(fragment.z > 1 || fragment.z < -1) continue; // extrapolation may cause z not in [-1,1]
-			glm::vec4 color;
-			FragmentShader(fragment, color); // run fragment shader noly once
-			glm::ivec4 icolor;
-			for(int i = 0; i < 2; i++)
-				for(int j = 0; j < 2; j++)
-					if(cover[i][j]) {
-						int xx = x + j, yy = y + i;
-						int i_pixel = yy * w + xx;
-						if(blend) {
-							float alpha = color.a;
-							glm::vec4 color_old = glm::vec4(
-								frame_buf[i_pixel * 3 + 0],
-								frame_buf[i_pixel * 3 + 1],
-								frame_buf[i_pixel * 3 + 2],
-								0.f
-							);
-							icolor = color * 255.f * alpha + color_old * (1.f - alpha);
-						} else {
-							icolor = color * 255.f;
-						}
-						icolor = glm::clamp(icolor, glm::ivec4(0), glm::ivec4(255));
-						frame_buf[i_pixel * 3 + 0] = icolor.r;
-						frame_buf[i_pixel * 3 + 1] = icolor.g;
-						frame_buf[i_pixel * 3 + 2] = icolor.b;
-					}
-		}
+		scanline[y].segment.clear();
+	}
 }
 
 void DrawCharater(int ch, int x0, int y0, bool aa, unsigned char *frame_buf) {

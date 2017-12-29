@@ -33,15 +33,11 @@ void NormalSpace(VertexIn *in, VertexOut *out, Vertex *v);
 void WindowSpace(Vertex *v);
 
 void AssemTriangle(Vertex *v, Triangle *triangle);
-void Rasterize(glm::ivec2 corner, glm::ivec2 dim, Vertex *v, VertexOut *va, float *depth_buf, unsigned char* frame_buf);
-void RasterizeMSAA(glm::ivec2 corner, glm::ivec2 dim, Vertex *v, VertexOut *va, float *depth_buf, unsigned char* frame_buf);
+void ScanTriangle(Vertex *v, VertexOut *vo, Scanline *scanline_);
+void DrawSegment(Scanline *scanline_, float *depth_buf, unsigned char* frame_buf);
 
 void DrawCharater(int ch, int x0, int y0, bool ssaa, unsigned char *frame_buf);
 void DownSample(unsigned char *frame_buf, unsigned char *pbo_buf);
-
-// void ScanTriangle(Vertex *v, );
-// void GetSegment();
-// void DrawSegment();
 
 }
 
@@ -72,6 +68,7 @@ void Texture2D::Bind(unsigned char *d, int w, int h, bool gamma_correction) {
 CPUPix::CPUPix(int window_w, int window_h, AA aa = AA::NOAA)
 	: window_w_(window_w), window_h_(window_h),
 	frame_w_(window_w), frame_h_(window_h), aa_(aa) {
+	if(aa_ == AA::MSAA) aa_ = AA::NOAA; // MSAA not supported
 	if(aa_ != AA::NOAA) {
 		frame_w_ *= 2;
 		frame_h_ *= 2;
@@ -89,7 +86,7 @@ CPUPix::CPUPix(int window_w, int window_h, AA aa = AA::NOAA)
 	fclose(font_file);
 	memcpy(kernel::bitmap, bitmap, r);
 
-	scanline_ = new Scanline[window_h_];
+	scanline_ = new Scanline[frame_h_];
 }
 
 CPUPix::~CPUPix() {
@@ -97,6 +94,7 @@ CPUPix::~CPUPix() {
 	delete[] frame_;
 	delete[] depth_buf_;
 	delete[] frame_buf_;
+	delete[] scanline_;
 }
 
 void CPUPix::AfterDraw() {
@@ -156,8 +154,6 @@ void CPUPix::Clear() {
 void CPUPix::Draw() {
 	kernel::NormalSpace(vertex_in_, vertex_out_, vertex_buf_);
 	kernel::WindowSpace(vertex_buf_);
-	// kernel::Segment();
-
 	kernel::AssemTriangle(vertex_buf_, triangle_buf_);
 	memcpy(triangle_, triangle_buf_, sizeof(Triangle) * n_triangle_);
 	for(int i = 0; i < n_triangle_; i++)
@@ -165,14 +161,12 @@ void CPUPix::Draw() {
 			if(!cull_ || ((cull_face_ != Face::FRONT_AND_BACK)
 			&& ((triangle_[i].winding == front_face_) != (cull_face_ == Face::FRONT)))) {
 				if(aa_ == AA::MSAA) {
-					glm::ivec2 v0 = triangle_[i].aabb[0] / 2, v1 = triangle_[i].aabb[1] / 2;
-					glm::ivec2 dim = v1 - v0 + 1;
-					kernel::RasterizeMSAA(v0, dim, vertex_buf_ + i * 3, vertex_out_ + i * 3, depth_buf_, frame_buf_);
+					// MSAA not supported
 				} else {
-					glm::ivec2 dim = triangle_[i].aabb[1] - triangle_[i].aabb[0] + 1;
-					kernel::Rasterize(triangle_[i].aabb[0], dim, vertex_buf_ + i * 3, vertex_out_ + i * 3, depth_buf_, frame_buf_);
+					kernel::ScanTriangle(vertex_buf_ + i * 3, vertex_out_ + i * 3, scanline_);
 				}
 			}
+	kernel::DrawSegment(scanline_, depth_buf_, frame_buf_);
 }
 
 void CPUPix::DrawFPS(int fps) {

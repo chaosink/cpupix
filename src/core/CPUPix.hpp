@@ -42,6 +42,47 @@ struct VertexOut {
 	glm::vec3 position;
 	glm::vec3 normal;
 	glm::vec2 uv;
+	VertexOut operator-() const {
+		return VertexOut {
+				-position,
+				-normal,
+				-uv
+		};
+	}
+	VertexOut operator-(const VertexOut &vo) const {
+		return VertexOut {
+			position - vo.position,
+			normal - vo.normal,
+			uv - vo.uv
+		};
+	}
+	VertexOut operator+(const VertexOut &vo) const {
+		return VertexOut {
+			position + vo.position,
+			normal + vo.normal,
+			uv + vo.uv
+		};
+	}
+	VertexOut operator/(const float a) const {
+		return VertexOut {
+			position / a,
+			normal / a,
+			uv / a
+		};
+	}
+	VertexOut operator*(const float a) const {
+		return VertexOut {
+			position * a,
+			normal * a,
+			uv * a
+		};
+	}
+	VertexOut& operator+=(const VertexOut &vo) {
+		position += vo.position;
+		normal += vo.normal;
+		uv += vo.uv;
+		return *this;
+	}
 };
 struct Vertex {
 	glm::vec4 position;
@@ -49,15 +90,54 @@ struct Vertex {
 
 struct Fragment {
 	float z;
-	glm::vec3 position;
-	glm::vec3 normal;
-	glm::vec2 uv;
+	float w;
+	VertexOut vo;
+	Fragment operator-() {
+		return Fragment {
+			-z,
+			-w,
+			-vo,
+		};
+	}
+	Fragment operator+(const Fragment &f) {
+		return Fragment {
+			z + f.z,
+			w + f.w,
+			vo + f.vo,
+		};
+	}
+	Fragment operator-(const Fragment &f) {
+		return Fragment {
+			z - f.z,
+			w - f.w,
+			vo - f.vo,
+		};
+	}
+	Fragment operator/(const float a) const {
+		return Fragment {
+			z / a,
+			w / a,
+			vo / a
+		};
+	}
+	Fragment operator*(const float a) const {
+		return Fragment {
+			z * a,
+			w * a,
+			vo * a
+		};
+	}
+	Fragment& operator+=(const Fragment &f) {
+		z += f.z;
+		w += f.w;
+		vo += f.vo;
+		return *this;
+	}
 };
-struct CorseSegment {
+struct Pixel {
 	int x;
-	int length;
+	bool in;
 	Fragment fragment;
-	Fragment fragment_delta;
 };
 struct Segment {
 	int x;
@@ -107,6 +187,7 @@ class CPUPix {
 	Winding front_face_ = Winding::CCW;
 	int n_triangle_, n_vertex_;
 	Triangle *triangle_ = nullptr;
+	Scanline *scanline_ = nullptr;
 	unsigned char *frame_buf_;
 	float *depth_buf_;
 
@@ -116,7 +197,6 @@ class CPUPix {
 	Triangle *triangle_buf_ = nullptr;
 	unsigned char *texture_buf_ = nullptr;
 
-	Scanline *scanline_ = nullptr;
 public:
 	CPUPix(int window_w, int window_h, AA aa);
 	~CPUPix();
