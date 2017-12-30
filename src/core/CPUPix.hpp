@@ -52,6 +52,13 @@ struct VertexOut {
 			uv - vo.uv
 		};
 	}
+	VertexOut operator*(const float a) const {
+		return VertexOut {
+			position * a,
+			normal * a,
+			uv * a
+		};
+	}
 	VertexOut operator/(const float a) const {
 		return VertexOut {
 			position / a,
@@ -79,6 +86,13 @@ struct Fragment {
 			z - f.z,
 			w - f.w,
 			vo - f.vo,
+		};
+	}
+	Fragment operator*(const float a) const {
+		return Fragment {
+			z * a,
+			w * a,
+			vo * a
 		};
 	}
 	Fragment operator/(const float a) const {

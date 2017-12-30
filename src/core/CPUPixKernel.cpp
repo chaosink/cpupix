@@ -82,8 +82,8 @@ void AssemSegment(
 	int x0, int y0,
 	int x1, int y1,
 	Fragment &&f0, Fragment &&f1,
-	int border_x_l[], int border_x_r[],
-	Fragment border_fragment_l[], Fragment border_fragment_r[]
+	int x_l[], int x_r[],
+	Fragment fragment_l[], Fragment fragment_r[]
 ) {
 	int x = x0, dx = x1 - x0;
 	int y = y0, dy = y1 - y0; // dy >= 0 is guaranteed
@@ -104,13 +104,13 @@ void AssemSegment(
 	// }
 
 	while(y != y1) {
-		if(border_x_l[y - y0] > x) {
-			border_x_l[y - y0] = x;
-			border_fragment_l[y - y0] = f;
+		if(x_l[y - y0] > x) {
+			x_l[y - y0] = x;
+			fragment_l[y - y0] = f;
 		}
-		if(border_x_r[y - y0] < x) {
-			border_x_r[y - y0] = x;
-			border_fragment_r[y - y0] = f;
+		if(x_r[y - y0] < x) {
+			x_r[y - y0] = x;
+			fragment_r[y - y0] = f;
 		}
 		y++;
 		xx += dxx;
@@ -134,13 +134,13 @@ void AssemSegment(
 		// 	f += y1 > y0 ? df : -df;
 		// }
 	}
-	if(border_x_l[y1 - y0] > x1) {
-		border_x_l[y1 - y0] = x1;
-		border_fragment_l[y1 - y0] = f1;
+	if(x_l[y1 - y0] > x1) {
+		x_l[y1 - y0] = x1;
+		fragment_l[y1 - y0] = f1;
 	}
-	if(border_x_r[y1 - y0] < x1) {
-		border_x_r[y1 - y0] = x1;
-		border_fragment_r[y1 - y0] = f1;
+	if(x_r[y1 - y0] < x1) {
+		x_r[y1 - y0] = x1;
+		fragment_r[y1 - y0] = f1;
 	}
 }
 
@@ -163,41 +163,51 @@ void ScanTriangle(Vertex *v, VertexOut *vo, Scanline *scanline) {
 		glm::ivec2(v[2].position.x, v[2].position.y)};
 	if(p[0].y >= h || p[2].y < 0) return;
 
-	int border_x_l[p[2].y - p[0].y + 1], border_x_r[p[2].y - p[0].y + 1];
-	Fragment border_fragment_l[p[2].y - p[0].y + 1], border_fragment_r[p[2].y - p[0].y + 1];
-	std::fill(border_x_r, border_x_r + p[2].y - p[0].y + 1, -1);
-	std::fill(border_x_l, border_x_l + p[2].y - p[0].y + 1, w);
+	int x_l[p[2].y - p[0].y + 1], x_r[p[2].y - p[0].y + 1];
+	Fragment fragment_l[p[2].y - p[0].y + 1], fragment_r[p[2].y - p[0].y + 1];
+	std::fill(x_r, x_r + p[2].y - p[0].y + 1, -1);
+	std::fill(x_l, x_l + p[2].y - p[0].y + 1, w);
 
 	AssemSegment(
 		p[0].x, p[0].y,
 		p[1].x, p[1].y,
 		Fragment{v[0].position.z, v[0].position.w, vo[0]},
 		Fragment{v[1].position.z, v[1].position.w, vo[1]},
-		border_x_l, border_x_r,
-		border_fragment_l, border_fragment_r);
+		x_l, x_r,
+		fragment_l, fragment_r);
 	AssemSegment(
 		p[0].x, p[0].y,
 		p[2].x, p[2].y,
 		Fragment{v[0].position.z, v[0].position.w, vo[0]},
 		Fragment{v[2].position.z, v[2].position.w, vo[2]},
-		border_x_l, border_x_r,
-		border_fragment_l, border_fragment_r);
+		x_l, x_r,
+		fragment_l, fragment_r);
 	AssemSegment(
 		p[1].x, p[1].y,
 		p[2].x, p[2].y,
 		Fragment{v[1].position.z, v[1].position.w, vo[1]},
 		Fragment{v[2].position.z, v[2].position.w, vo[2]},
-		border_x_l + p[1].y - p[0].y, border_x_r + p[1].y - p[0].y,
-		border_fragment_l + p[1].y - p[0].y, border_fragment_r + p[1].y - p[0].y);
+		x_l + p[1].y - p[0].y, x_r + p[1].y - p[0].y,
+		fragment_l + p[1].y - p[0].y, fragment_r + p[1].y - p[0].y);
 
 	for(int y = p[0].y; y <= p[2].y; ++y) {
 		if(y < 0 || y >= h) continue;
 		int i = y - p[0].y;
+		if(x_r[i] < x_l[i]) continue;
+		if(x_r[i] < 0 || x_l[i] >= w) continue; // maybe needless if do 2D clipping
+		int l = x_l[i];
+		int r = min(x_r[i], w - 1);
+		Fragment fragment = fragment_l[i];
+		Fragment fragment_delta = (fragment_r[i] - fragment_l[i]) / (x_r[i] - x_l[i]);
+		if(x_l[i] < 0) {  // maybe needless if do 2D clipping
+			l = 0;
+			fragment += fragment_delta * -x_l[i];
+		}
 		scanline[y].segment.push_back(Segment{
-			border_x_l[i],
-			border_x_r[i] - border_x_l[i] + 1,
-			border_fragment_l[i],
-			(border_fragment_r[i] - border_fragment_l[i]) / (border_x_r[i] - border_x_l[i])
+			l,
+			r - l + 1,
+			fragment,
+			fragment_delta
 		});
 	}
 }
@@ -210,7 +220,6 @@ void DrawSegment(Scanline *scanline, float *depth_buf, unsigned char* frame_buf)
 			Fragment fragment = scanline[y].segment[i].fragment;
 			for(int k = 0; k < scanline[y].segment[i].length - 1;
 					++k, ++x, fragment += scanline[y].segment[i].fragment_delta) {
-				if(x < 0 || x >= w) continue;
 				if(fragment.z > 1 || fragment.z < -1) continue; // need 3D clipping
 				int i_pixel = y * w + x;
 				if(!depth_test || 1 - fragment.z > depth_buf[i_pixel]) {
