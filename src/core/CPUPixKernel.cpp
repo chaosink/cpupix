@@ -88,7 +88,8 @@ void AssemSegment(
 	Fragment fragment_l[], Fragment fragment_r[]
 ) {
 	int x = x0, dx = x1 - x0;
-	int y = y0, dy = y1 - y0; // dy >= 0 is guaranteed
+	int y = y0, dy = y1 - y0;
+	assert(dy >= 0);
 	if(dy == 0) return;
 
 	Fragment f = f0, df = (f1 - f0) / dy;
