@@ -139,7 +139,7 @@ struct Segment {
 struct ScanNode {
 	bool in;
 	int x;
-	Segment *segment;
+	int segment;
 };
 struct Scanline {
 	std::vector<Segment> segment;

@@ -214,55 +214,60 @@ void DrawSegment(Scanline *scanline, float *depth_buf, unsigned char* frame_buf)
 			node.push_back(ScanNode{
 				true,
 				scanline[y].segment[i].x,
-				&scanline[y].segment[i]
+				static_cast<int>(i)
 			});
 			node.push_back(ScanNode{
 				false,
 				scanline[y].segment[i].x + scanline[y].segment[i].length - 1,
-				&scanline[y].segment[i]
+				static_cast<int>(i)
 			});
 		}
 		std::sort(node.begin(), node.end(), [](const ScanNode &n0, const ScanNode &n1){
 			return n0.x < n1.x
-			|| (n0.x == n1.x && !n0.in && n1.in && n0.segment != n1.segment)
-			|| (n0.x == n1.x && n0.in && !n1.in && n0.segment == n1.segment);
+			|| (n0.x == n1.x && n0.in && !n1.in && n0.segment == n1.segment)
+			|| (n0.x == n1.x && n0.in && !n1.in && n0.segment != n1.segment);
 		});
-		std::unordered_set<Segment*> segment_in;
-		Segment *segment = nullptr;
+		std::unordered_set<int> segment_in;
+		int segment = -1;
 		Fragment fragment;
+		bool stop = false;
 		for(size_t i = 0; i < node.size() - 1; ++i) {
 			if(segment_in.empty()) { // node[i].in must be true
-				segment = node[i].segment;
-				fragment = segment->fragment;
 				segment_in.insert(node[i].segment);
+				segment = node[i].segment;
+				fragment = scanline[y].segment[segment].fragment;
 			} else if(node[i].in) {
 				segment_in.insert(node[i].segment);
 				// compare z between node[i].segment and segment
-				if(node[i].segment->fragment.z < fragment.z) { // 1 - z0 > 1 - z1, z0 < z1
+				if(scanline[y].segment[node[i].segment].fragment.z < fragment.z) { // 1 - z0 > 1 - z1, z0 < z1
 					segment = node[i].segment;
-					fragment = segment->fragment;
+					fragment = scanline[y].segment[segment].fragment;
 				}
 			} else {
 				segment_in.erase(node[i].segment);
 				int x = node[i].x;
 				if(segment == node[i].segment) {
-					segment = nullptr; // segment = nullptr if segment_in is empty
+					segment = -1; // segment = nullptr if segment_in is empty
 					// calculate new segment
 					float z = 0;
 					for(auto s: segment_in) {
-						float segment_z = 1 - s->z(x);
+						float segment_z = 1 - scanline[y].segment[s].z(x);
 						if(segment_z > z) {
 							z = segment_z;
 							segment = s;
 						}
 					}
-					if(segment) fragment = segment->f(x);
+					if(segment != -1) fragment = scanline[y].segment[segment].f(x);
 				}
 			}
-			if(segment)
+			if(segment != -1)
 				for(int x = node[i].x; x < node[i + 1].x;
-						++x, fragment += segment->fragment_delta) {
-					if(x < 0 || x >= w) continue;
+						++x, fragment += scanline[y].segment[segment].fragment_delta) {
+					if(x >= w) {
+						stop = true;
+						break;
+					}
+					if(x < 0) continue;
 					if(fragment.z > 1 || fragment.z < -1) continue; // need 3D clipping
 					int i_pixel = y * w + x;
 					if(!depth_test || 1 - fragment.z > depth_buf[i_pixel]) {
@@ -295,16 +300,17 @@ void DrawSegment(Scanline *scanline, float *depth_buf, unsigned char* frame_buf)
 						frame_buf[i_pixel * 3 + 2] = icolor.b;
 					}
 				}
-			if(segment_in.size() == 2) {
-				cout << segment_in.size() << "\t";
-				for(int i = 0; i < scanline[y].segment.size(); ++i)
-					cout << scanline[y].segment[i].x << " ";
-				cout << endl;
-				for(int i = 0; i < node.size(); ++i)
-					cout << "{" << node[i].x << "," << node[i].in << "} ";
-				cout << endl;
-			}
+			if(stop) break;
 		}
+		// if(segment_in.size() != 1) {
+		// 	cout << segment_in.size() << " " << y << "\t";
+		// 	for(int i = 0; i < scanline[y].segment.size(); ++i)
+		// 		cout << scanline[y].segment[i].x << " ";
+		// 	cout << endl;
+		// 	for(int i = 0; i < node.size(); ++i)
+		// 		cout << "{" << node[i].segment << ": " << node[i].x << "," << node[i].in << "} ";
+		// 	cout << endl;
+		// }
 		scanline[y].segment.clear();
 	}
 }
