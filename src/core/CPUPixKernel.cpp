@@ -212,6 +212,40 @@ void ScanTriangle(Vertex *v, VertexOut *vo, Scanline *scanline) {
 	}
 }
 
+void DrawPixel(int x, int y, Fragment &fragment, float *depth_buf, unsigned char* frame_buf) {
+	if(fragment.z > 1 || fragment.z < -1) return; // need 3D clipping
+	int i_pixel = y * w + x;
+	if(!depth_test || 1 - fragment.z > depth_buf[i_pixel]) {
+		depth_buf[i_pixel] = 1 - fragment.z;
+		glm::vec4 color;
+		FragmentIn fi{
+			glm::vec2(x, y),
+			fragment.z,
+			fragment.vo.position / fragment.w,
+			fragment.vo.normal / fragment.w,
+			fragment.vo.uv / fragment.w,
+		};
+		FragmentShader(fi, color);
+		glm::ivec4 icolor;
+		if(blend) {
+			float alpha = color.a;
+			glm::vec4 color_old = glm::vec4(
+				frame_buf[i_pixel * 3 + 0],
+				frame_buf[i_pixel * 3 + 1],
+				frame_buf[i_pixel * 3 + 2],
+				0.f
+			);
+			icolor = color * 255.f * alpha + color_old * (1.f - alpha);
+		} else {
+			icolor = color * 255.f;
+		}
+		icolor = glm::clamp(icolor, glm::ivec4(0), glm::ivec4(255));
+		frame_buf[i_pixel * 3 + 0] = icolor.r;
+		frame_buf[i_pixel * 3 + 1] = icolor.g;
+		frame_buf[i_pixel * 3 + 2] = icolor.b;
+	}
+}
+
 void DrawSegment(Scanline *scanline, float *depth_buf, unsigned char* frame_buf) {
 	#pragma omp parallel for
 	for(int y = 0; y < h; ++y) {
@@ -219,39 +253,8 @@ void DrawSegment(Scanline *scanline, float *depth_buf, unsigned char* frame_buf)
 			int x = scanline[y].segment[i].x;
 			Fragment fragment = scanline[y].segment[i].fragment;
 			for(int k = 0; k < scanline[y].segment[i].length - 1;
-					++k, ++x, fragment += scanline[y].segment[i].fragment_delta) {
-				if(fragment.z > 1 || fragment.z < -1) continue; // need 3D clipping
-				int i_pixel = y * w + x;
-				if(!depth_test || 1 - fragment.z > depth_buf[i_pixel]) {
-					depth_buf[i_pixel] = 1 - fragment.z;
-					glm::vec4 color;
-					FragmentIn fi{
-						glm::vec2(x, y),
-						fragment.z,
-						fragment.vo.position / fragment.w,
-						fragment.vo.normal / fragment.w,
-						fragment.vo.uv / fragment.w,
-					};
-					FragmentShader(fi, color);
-					glm::ivec4 icolor;
-					if(blend) {
-						float alpha = color.a;
-						glm::vec4 color_old = glm::vec4(
-							frame_buf[i_pixel * 3 + 0],
-							frame_buf[i_pixel * 3 + 1],
-							frame_buf[i_pixel * 3 + 2],
-							0.f
-						);
-						icolor = color * 255.f * alpha + color_old * (1.f - alpha);
-					} else {
-						icolor = color * 255.f;
-					}
-					icolor = glm::clamp(icolor, glm::ivec4(0), glm::ivec4(255));
-					frame_buf[i_pixel * 3 + 0] = icolor.r;
-					frame_buf[i_pixel * 3 + 1] = icolor.g;
-					frame_buf[i_pixel * 3 + 2] = icolor.b;
-				}
-			}
+					++k, ++x, fragment += scanline[y].segment[i].fragment_delta)
+				DrawPixel(x, y, fragment, depth_buf, frame_buf);
 		}
 		scanline[y].segment.clear();
 	}
