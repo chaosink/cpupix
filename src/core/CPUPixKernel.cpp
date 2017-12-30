@@ -195,6 +195,7 @@ void ScanTriangle(Vertex *v, VertexOut *vo, Scanline *scanline) {
 	for(int y = p[0].y; y <= p[2].y; ++y) {
 		if(y < 0 || y >= h) continue;
 		int i = y - p[0].y;
+		if(border_x_r[i] < border_x_l[i]) continue;
 		scanline[y].segment.push_back(Segment{
 			border_x_l[i],
 			border_x_r[i] - border_x_l[i] + 1,
