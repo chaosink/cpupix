@@ -215,12 +215,12 @@ void DrawSegment(Scanline *scanline, float *depth_buf, unsigned char* frame_buf)
 			node.push_back(ScanNode{
 				true,
 				scanline[y].segment[i].x,
-				static_cast<int>(i)
+				&scanline[y].segment[i]
 			});
 			node.push_back(ScanNode{
 				false,
 				scanline[y].segment[i].x + scanline[y].segment[i].length - 1,
-				static_cast<int>(i)
+				&scanline[y].segment[i]
 			});
 		}
 		std::sort(node.begin(), node.end(), [](const ScanNode &n0, const ScanNode &n1){
@@ -228,42 +228,42 @@ void DrawSegment(Scanline *scanline, float *depth_buf, unsigned char* frame_buf)
 			|| (n0.x == n1.x && n0.in && !n1.in && n0.segment == n1.segment)
 			|| (n0.x == n1.x && n0.in && !n1.in && n0.segment != n1.segment);
 		});
-		std::unordered_set<int> segment_in;
-		int segment = -1;
+		std::unordered_set<Segment*> segment_in;
+		Segment *segment = nullptr;
 		Fragment fragment;
 		bool stop = false;
 		for(size_t i = 0; i < node.size() - 1; ++i) {
 			if(segment_in.empty()) { // node[i].in must be true
 				segment_in.insert(node[i].segment);
 				segment = node[i].segment;
-				fragment = scanline[y].segment[segment].fragment;
+				fragment = segment->fragment;
 			} else if(node[i].in) {
 				segment_in.insert(node[i].segment);
 				// compare z between node[i].segment and segment
-				if(scanline[y].segment[node[i].segment].fragment.z < fragment.z) { // 1 - z0 > 1 - z1, z0 < z1
+				if(node[i].segment->fragment.z < fragment.z) { // 1 - z0 > 1 - z1, z0 < z1
 					segment = node[i].segment;
-					fragment = scanline[y].segment[segment].fragment;
+					fragment = segment->fragment;
 				}
 			} else {
 				segment_in.erase(node[i].segment);
 				int x = node[i].x;
 				if(segment == node[i].segment) {
-					segment = -1; // segment = nullptr if segment_in is empty
+					segment = nullptr; // segment = nullptr if segment_in is empty
 					// calculate new segment
 					float z = 0;
 					for(auto s: segment_in) {
-						float segment_z = 1 - scanline[y].segment[s].z(x);
+						float segment_z = 1 - s->z(x);
 						if(segment_z > z) {
 							z = segment_z;
 							segment = s;
 						}
 					}
-					if(segment != -1) fragment = scanline[y].segment[segment].f(x);
+					if(segment != nullptr) fragment = segment->f(x);
 				}
 			}
-			if(segment != -1)
+			if(segment != nullptr)
 				for(int x = node[i].x; x < node[i + 1].x;
-						++x, fragment += scanline[y].segment[segment].fragment_delta) {
+						++x, fragment += segment->fragment_delta) {
 					if(x >= w) {
 						stop = true;
 						break;
