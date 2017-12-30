@@ -84,8 +84,8 @@ void AssemSegment(
 	int x0, int y0,
 	int x1, int y1,
 	Fragment &&f0, Fragment &&f1,
-	int border_x_l[], int border_x_r[],
-	Fragment border_fragment_l[], Fragment border_fragment_r[]
+	int x_l[], int x_r[],
+	Fragment fragment_l[], Fragment fragment_r[]
 ) {
 	int x = x0, dx = x1 - x0;
 	int y = y0, dy = y1 - y0; // dy >= 0 is guaranteed
@@ -106,13 +106,13 @@ void AssemSegment(
 	// }
 
 	while(y != y1) {
-		if(border_x_l[y - y0] > x) {
-			border_x_l[y - y0] = x;
-			border_fragment_l[y - y0] = f;
+		if(x_l[y - y0] > x) {
+			x_l[y - y0] = x;
+			fragment_l[y - y0] = f;
 		}
-		if(border_x_r[y - y0] < x) {
-			border_x_r[y - y0] = x;
-			border_fragment_r[y - y0] = f;
+		if(x_r[y - y0] < x) {
+			x_r[y - y0] = x;
+			fragment_r[y - y0] = f;
 		}
 		y++;
 		xx += dxx;
@@ -136,13 +136,13 @@ void AssemSegment(
 		// 	f += y1 > y0 ? df : -df;
 		// }
 	}
-	if(border_x_l[y1 - y0] > x1) {
-		border_x_l[y1 - y0] = x1;
-		border_fragment_l[y1 - y0] = f1;
+	if(x_l[y1 - y0] > x1) {
+		x_l[y1 - y0] = x1;
+		fragment_l[y1 - y0] = f1;
 	}
-	if(border_x_r[y1 - y0] < x1) {
-		border_x_r[y1 - y0] = x1;
-		border_fragment_r[y1 - y0] = f1;
+	if(x_r[y1 - y0] < x1) {
+		x_r[y1 - y0] = x1;
+		fragment_r[y1 - y0] = f1;
 	}
 }
 
@@ -165,47 +165,91 @@ void ScanTriangle(Vertex *v, VertexOut *vo, Scanline *scanline) {
 		glm::ivec2(v[2].position.x, v[2].position.y)};
 	if(p[0].y >= h || p[2].y < 0) return;
 
-	int border_x_l[p[2].y - p[0].y + 1], border_x_r[p[2].y - p[0].y + 1];
-	Fragment border_fragment_l[p[2].y - p[0].y + 1], border_fragment_r[p[2].y - p[0].y + 1];
-	std::fill(border_x_r, border_x_r + p[2].y - p[0].y + 1, -1);
-	std::fill(border_x_l, border_x_l + p[2].y - p[0].y + 1, w);
+	int x_l[p[2].y - p[0].y + 1], x_r[p[2].y - p[0].y + 1];
+	Fragment fragment_l[p[2].y - p[0].y + 1], fragment_r[p[2].y - p[0].y + 1];
+	std::fill(x_r, x_r + p[2].y - p[0].y + 1, -1);
+	std::fill(x_l, x_l + p[2].y - p[0].y + 1, w);
 
 	AssemSegment(
 		p[0].x, p[0].y,
 		p[1].x, p[1].y,
 		Fragment{v[0].position.z, v[0].position.w, vo[0]},
 		Fragment{v[1].position.z, v[1].position.w, vo[1]},
-		border_x_l, border_x_r,
-		border_fragment_l, border_fragment_r);
+		x_l, x_r,
+		fragment_l, fragment_r);
 	AssemSegment(
 		p[0].x, p[0].y,
 		p[2].x, p[2].y,
 		Fragment{v[0].position.z, v[0].position.w, vo[0]},
 		Fragment{v[2].position.z, v[2].position.w, vo[2]},
-		border_x_l, border_x_r,
-		border_fragment_l, border_fragment_r);
+		x_l, x_r,
+		fragment_l, fragment_r);
 	AssemSegment(
 		p[1].x, p[1].y,
 		p[2].x, p[2].y,
 		Fragment{v[1].position.z, v[1].position.w, vo[1]},
 		Fragment{v[2].position.z, v[2].position.w, vo[2]},
-		border_x_l + p[1].y - p[0].y, border_x_r + p[1].y - p[0].y,
-		border_fragment_l + p[1].y - p[0].y, border_fragment_r + p[1].y - p[0].y);
+		x_l + p[1].y - p[0].y, x_r + p[1].y - p[0].y,
+		fragment_l + p[1].y - p[0].y, fragment_r + p[1].y - p[0].y);
 
 	for(int y = p[0].y; y <= p[2].y; ++y) {
 		if(y < 0 || y >= h) continue;
 		int i = y - p[0].y;
-		if(border_x_r[i] < border_x_l[i]) continue;
+		if(x_r[i] < x_l[i]) continue;
+		if(x_r[i] < 0 || x_l[i] >= w) continue; // maybe needless if do 2D clipping
+		int l = x_l[i];
+		int r = min(x_r[i], w - 1);
+		Fragment fragment = fragment_l[i];
+		Fragment fragment_delta = (fragment_r[i] - fragment_l[i]) / (x_r[i] - x_l[i]);
+		if(x_l[i] < 0) {  // maybe needless if do 2D clipping
+			l = 0;
+			fragment += fragment_delta * -x_l[i];
+		}
 		scanline[y].segment.push_back(Segment{
-			border_x_l[i],
-			border_x_r[i] - border_x_l[i] + 1,
-			border_fragment_l[i],
-			(border_fragment_r[i] - border_fragment_l[i]) / (border_x_r[i] - border_x_l[i])
+			l,
+			r - l + 1,
+			fragment,
+			fragment_delta
 		});
 	}
 }
 
-void DrawSegment(Scanline *scanline, float *depth_buf, unsigned char* frame_buf) {
+void DrawPixel(int x, int y, Fragment &fragment, float *depth_buf, unsigned char* frame_buf) {
+	if(fragment.z > 1 || fragment.z < -1) return; // need 3D clipping
+	int i_pixel = y * w + x;
+	if(!depth_test || 1 - fragment.z > depth_buf[i_pixel]) {
+		depth_buf[i_pixel] = 1 - fragment.z;
+		glm::vec4 color;
+		FragmentIn fi{
+			glm::vec2(x, y),
+			fragment.z,
+			fragment.vo.position / fragment.w,
+			fragment.vo.normal / fragment.w,
+			fragment.vo.uv / fragment.w,
+		};
+		FragmentShader(fi, color);
+		glm::ivec4 icolor;
+		if(blend) {
+			float alpha = color.a;
+			glm::vec4 color_old = glm::vec4(
+				frame_buf[i_pixel * 3 + 0],
+				frame_buf[i_pixel * 3 + 1],
+				frame_buf[i_pixel * 3 + 2],
+				0.f
+			);
+			icolor = color * 255.f * alpha + color_old * (1.f - alpha);
+		} else {
+			icolor = color * 255.f;
+		}
+		icolor = glm::clamp(icolor, glm::ivec4(0), glm::ivec4(255));
+		frame_buf[i_pixel * 3 + 0] = icolor.r;
+		frame_buf[i_pixel * 3 + 1] = icolor.g;
+		frame_buf[i_pixel * 3 + 2] = icolor.b;
+	}
+}
+
+// scanline with segment if depth_test is true
+void DrawSegmentWithDepthTest(Scanline *scanline, float *depth_buf, unsigned char* frame_buf) {
 	#pragma omp parallel for
 	for(int y = 0; y < h; ++y) {
 		if(scanline[y].segment.size() == 0) continue;
@@ -225,21 +269,20 @@ void DrawSegment(Scanline *scanline, float *depth_buf, unsigned char* frame_buf)
 		}
 		std::sort(node.begin(), node.end(), [](const ScanNode &n0, const ScanNode &n1){
 			return n0.x < n1.x
-			|| (n0.x == n1.x && n0.in && !n1.in && n0.segment == n1.segment)
+			|| (n0.x == n1.x && n0.in && !n1.in && n0.segment == n1.segment) // TODO
 			|| (n0.x == n1.x && n0.in && !n1.in && n0.segment != n1.segment);
 		});
 		std::unordered_set<Segment*> segment_in;
 		Segment *segment = nullptr;
 		Fragment fragment;
-		bool stop = false;
 		for(size_t i = 0; i < node.size() - 1; ++i) {
-			if(segment_in.empty()) { // node[i].in must be true
+			if(segment_in.empty()) {
+				assert(node[i].in);
 				segment_in.insert(node[i].segment);
 				segment = node[i].segment;
 				fragment = segment->fragment;
 			} else if(node[i].in) {
 				segment_in.insert(node[i].segment);
-				// compare z between node[i].segment and segment
 				if(node[i].segment->fragment.z < fragment.z) { // 1 - z0 > 1 - z1, z0 < z1
 					segment = node[i].segment;
 					fragment = segment->fragment;
@@ -248,8 +291,7 @@ void DrawSegment(Scanline *scanline, float *depth_buf, unsigned char* frame_buf)
 				segment_in.erase(node[i].segment);
 				int x = node[i].x;
 				if(segment == node[i].segment) {
-					segment = nullptr; // segment = nullptr if segment_in is empty
-					// calculate new segment
+					segment = nullptr;
 					float z = 0;
 					for(auto s: segment_in) {
 						float segment_z = 1 - s->z(x);
@@ -263,57 +305,33 @@ void DrawSegment(Scanline *scanline, float *depth_buf, unsigned char* frame_buf)
 			}
 			if(segment != nullptr)
 				for(int x = node[i].x; x < node[i + 1].x;
-						++x, fragment += segment->fragment_delta) {
-					if(x >= w) {
-						stop = true;
-						break;
-					}
-					if(x < 0) continue;
-					if(fragment.z > 1 || fragment.z < -1) continue; // need 3D clipping
-					int i_pixel = y * w + x;
-					if(!depth_test || 1 - fragment.z > depth_buf[i_pixel]) {
-						depth_buf[i_pixel] = 1 - fragment.z;
-						glm::vec4 color;
-						FragmentIn fi{
-							glm::vec2(x, y),
-							fragment.z,
-							fragment.vo.position / fragment.w,
-							fragment.vo.normal / fragment.w,
-							fragment.vo.uv / fragment.w,
-						};
-						FragmentShader(fi, color);
-						glm::ivec4 icolor;
-						if(blend) {
-							float alpha = color.a;
-							glm::vec4 color_old = glm::vec4(
-								frame_buf[i_pixel * 3 + 0],
-								frame_buf[i_pixel * 3 + 1],
-								frame_buf[i_pixel * 3 + 2],
-								0.f
-							);
-							icolor = color * 255.f * alpha + color_old * (1.f - alpha);
-						} else {
-							icolor = color * 255.f;
-						}
-						icolor = glm::clamp(icolor, glm::ivec4(0), glm::ivec4(255));
-						frame_buf[i_pixel * 3 + 0] = icolor.r;
-						frame_buf[i_pixel * 3 + 1] = icolor.g;
-						frame_buf[i_pixel * 3 + 2] = icolor.b;
-					}
-				}
-			if(stop) break;
+						++x, fragment += segment->fragment_delta)
+					DrawPixel(x, y, fragment, depth_buf, frame_buf);
 		}
-		// if(segment_in.size() != 1) {
-		// 	cout << segment_in.size() << " " << y << "\t";
-		// 	for(int i = 0; i < scanline[y].segment.size(); ++i)
-		// 		cout << scanline[y].segment[i].x << " ";
-		// 	cout << endl;
-		// 	for(int i = 0; i < node.size(); ++i)
-		// 		cout << "{" << node[i].segment << ": " << node[i].x << "," << node[i].in << "} ";
-		// 	cout << endl;
-		// }
 		scanline[y].segment.clear();
 	}
+}
+
+// ordinary scanline if depth_test is false
+void DrawSegmentWithoutDepthTest(Scanline *scanline, float *depth_buf, unsigned char* frame_buf) {
+	#pragma omp parallel for
+	for(int y = 0; y < h; ++y) {
+		for(size_t i = 0; i < scanline[y].segment.size(); ++i) {
+			int x = scanline[y].segment[i].x;
+			Fragment fragment = scanline[y].segment[i].fragment;
+			for(int k = 0; k < scanline[y].segment[i].length - 1;
+					++k, ++x, fragment += scanline[y].segment[i].fragment_delta)
+				DrawPixel(x, y, fragment, depth_buf, frame_buf);
+		}
+		scanline[y].segment.clear();
+	}
+}
+
+void DrawSegment(Scanline *scanline, float *depth_buf, unsigned char* frame_buf) {
+	if(depth_test)
+		DrawSegmentWithDepthTest(scanline, depth_buf, frame_buf);
+	else
+		DrawSegmentWithoutDepthTest(scanline, depth_buf, frame_buf);
 }
 
 void DrawCharater(int ch, int x0, int y0, unsigned char *frame_buf) {
