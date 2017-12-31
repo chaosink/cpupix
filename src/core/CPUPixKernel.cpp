@@ -416,7 +416,7 @@ void DrawSegment(Scanline *scanline, float *depth_buf, unsigned char* frame_buf)
 		DrawSegmentWithoutDepthTest(scanline, depth_buf, frame_buf);
 }
 
-void DrawCharater(int ch, int x0, int y0, unsigned char *frame_buf) {
+void DrawCharater(int ch, int x0, int y0, int w, unsigned char *frame_buf) {
 	#pragma omp parallel for
 	for(int y = 0; y < 16; ++y)
 		for(int x = 0; x < 16; ++x) {
