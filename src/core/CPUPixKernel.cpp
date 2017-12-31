@@ -164,8 +164,10 @@ void ScanTriangle(Vertex *v, VertexOut *vo, Scanline *scanline) {
 		glm::ivec2(v[2].position.x, v[2].position.y)};
 	if(p[0].y >= h || p[2].y < 0) return;
 
-	int x_l[p[2].y - p[0].y + 1], x_r[p[2].y - p[0].y + 1];
-	Fragment fragment_l[p[2].y - p[0].y + 1], fragment_r[p[2].y - p[0].y + 1];
+	int *x_l = new int[p[2].y - p[0].y + 1];
+	int *x_r = new int[p[2].y - p[0].y + 1];
+	Fragment *fragment_l = new Fragment[p[2].y - p[0].y + 1];
+	Fragment *fragment_r = new Fragment[p[2].y - p[0].y + 1];
 	std::fill(x_r, x_r + p[2].y - p[0].y + 1, -1);
 	std::fill(x_l, x_l + p[2].y - p[0].y + 1, w);
 
@@ -197,7 +199,7 @@ void ScanTriangle(Vertex *v, VertexOut *vo, Scanline *scanline) {
 		if(x_r[i] < x_l[i]) continue;
 		if(x_r[i] < 0 || x_l[i] >= w) continue; // maybe needless if do 2D clipping
 		int l = x_l[i];
-		int r = min(x_r[i], w - 1);
+		int r = glm::min(x_r[i], w - 1);
 		Fragment fragment = fragment_l[i];
 		Fragment fragment_delta = (fragment_r[i] - fragment_l[i]) / (x_r[i] - x_l[i]);
 		if(x_l[i] < 0) {  // maybe needless if do 2D clipping
@@ -211,6 +213,11 @@ void ScanTriangle(Vertex *v, VertexOut *vo, Scanline *scanline) {
 			fragment_delta
 		});
 	}
+
+	delete[] x_l;
+	delete[] x_r;
+	delete[] fragment_l;
+	delete[] fragment_r;
 }
 
 void DrawPixel(int x, int y, Fragment &fragment, float *depth_buf, unsigned char* frame_buf) {
