@@ -322,7 +322,6 @@ void DrawSegmentWithoutDepthTest(Scanline *scanline, float *depth_buf, unsigned 
 	#pragma omp parallel for
 	for(int y = 0; y < h; ++y) {
 		vector<Segment> &seg = scanline[y].segment;
-
 		for(size_t i = 0; i < seg.size(); ++i) {
 			int x = seg[i].x;
 			Fragment fragment = seg[i].fragment;
@@ -330,7 +329,6 @@ void DrawSegmentWithoutDepthTest(Scanline *scanline, float *depth_buf, unsigned 
 					++k, ++x, fragment += seg[i].fragment_delta)
 				DrawPixel(x, y, fragment, depth_buf, frame_buf);
 		}
-
 		seg.clear();
 	}
 }
