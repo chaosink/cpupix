@@ -4,7 +4,6 @@
 #include <algorithm>
 #include <unordered_set>
 #include <map>
-using namespace std;
 
 namespace cpupix {
 
@@ -200,7 +199,7 @@ void ScanTriangle(Vertex *v, VertexOut *vo, Scanline *scanline) {
 		if(x_r[i] < x_l[i]) continue;
 		if(x_r[i] < 0 || x_l[i] >= w) continue; // maybe needless if do 2D clipping
 		int l = x_l[i];
-		int r = min(x_r[i], w - 1);
+		int r = glm::min(x_r[i], w - 1);
 		Fragment fragment = fragment_l[i];
 		Fragment fragment_delta = (fragment_r[i] - fragment_l[i]) / (x_r[i] - x_l[i]);
 		if(x_l[i] < 0) {  // maybe needless if do 2D clipping
@@ -251,13 +250,12 @@ void DrawPixel(int x, int y, Fragment &fragment, float *depth_buf, unsigned char
 }
 
 int IntersectSegment(
-	vector<Segment> &seg, int s0, int s1,
-	std::map<std::pair<int, int>, std::pair<bool, int>> &intersection
+	std::vector<Segment> &seg, int s0, int s1,
+	std::map<std::pair<int, int>, int> &intersection
 ) {
-	if(intersection[{s0, s1}].first)
-		return intersection[{s0, s1}].second;
-	intersection[{s0, s1}].first = intersection[{s1, s0}].first = true;
-	return intersection[{s0, s1}].second = intersection[{s1, s0}].second =
+	if(intersection[{s0, s1}])
+		return intersection[{s0, s1}];
+	return intersection[{s0, s1}] = intersection[{s1, s0}] =
 		((seg[s0].fragment_delta.z * seg[s0].x - seg[s1].fragment_delta.z * seg[s1].x)
 			- (seg[s0].fragment.z - seg[s1].fragment.z))
 		/ (seg[s0].fragment_delta.z - seg[s1].fragment_delta.z);
@@ -267,7 +265,7 @@ int IntersectSegment(
 void DrawSegmentWithDepthTest(Scanline *scanline, float *depth_buf, unsigned char* frame_buf) {
 	#pragma omp parallel for
 	for(int y = 0; y < h; ++y) {
-		vector<Segment> &seg = scanline[y].segment;
+		std::vector<Segment> &seg = scanline[y].segment;
 		if(seg.size() == 0) continue;
 
 		std::vector<ScanNode> node;
@@ -291,7 +289,9 @@ void DrawSegmentWithDepthTest(Scanline *scanline, float *depth_buf, unsigned cha
 		});
 
 		std::unordered_set<int> segment_in;
-		std::map<std::pair<int, int>, std::pair<bool, int>> intersection;
+		std::map<std::pair<int, int>, int> intersection;
+		int segment;
+		Fragment fragment;
 		for(size_t i = 0; i < node.size() - 1; ++i) {
 			if(segment_in.empty()) {
 				assert(node[i].in);
@@ -308,35 +308,69 @@ void DrawSegmentWithDepthTest(Scanline *scanline, float *depth_buf, unsigned cha
 					segment_in.erase(node[i].segment);
 				if(segment_in.empty()) continue;
 
-				std::vector<int> segment;
-				segment.reserve(segment_in.size());
-				for(auto s: segment_in) segment.push_back(s);
-				std::unordered_set<int> ix_set;
-				ix_set.insert(node[i].x);
-				for(size_t s = 0; s < segment.size(); ++s)
-					for(size_t t = s + 1; t < segment.size(); ++t) {
-						// "+ 1" is nessary
-						int x = IntersectSegment(seg, segment[s], segment[t], intersection) + 1;
-						if(x > node[i].x && x < node[i + 1].x)
-							ix_set.insert(x);
+				// special handling for segment_in.size() == 1 or 2
+				if(segment_in.size() == 1) {
+					segment = *segment_in.begin();
+					fragment = seg[segment].f(node[i].x);
+					for(int x = node[i].x; x < node[i + 1].x;
+							++x, fragment += seg[segment].fragment_delta)
+						DrawPixel(x, y, fragment, depth_buf, frame_buf);
+					continue;
+				} else if(segment_in.size() == 2) {
+					int s0 = *segment_in.begin(), s1 = *(++segment_in.begin());
+					if(seg[s0].z(node[i].x) > seg[s1].z(node[i].x)) // need z clipping
+						std::swap(s0, s1);
+					if(seg[s0].z(node[i + 1].x) > seg[s1].z(node[i + 1].x)) { // need z clipping
+						int ix = IntersectSegment(seg, s0, s1, intersection);
+						segment = s0;
+						fragment = seg[segment].f(node[i].x);
+						for(int x = node[i].x; x < ix;
+								++x, fragment += seg[segment].fragment_delta)
+							DrawPixel(x, y, fragment, depth_buf, frame_buf);
+						segment = s1;
+						fragment = seg[segment].f(ix);
+						for(int x = ix; x < node[i + 1].x;
+								++x, fragment += seg[segment].fragment_delta)
+							DrawPixel(x, y, fragment, depth_buf, frame_buf);
+						continue;
+					} else {
+						segment = s0;
+						fragment = seg[segment].f(node[i].x);
+						for(int x = node[i].x; x < node[i + 1].x;
+								++x, fragment += seg[segment].fragment_delta)
+							DrawPixel(x, y, fragment, depth_buf, frame_buf);
+						continue;
 					}
-				ix_set.insert(node[i + 1].x);
+					continue;
+				}
+
+				// general handling for segment_in.size() > 2
+				std::vector<int> segments;
+				segments.reserve(segment_in.size());
+				for(auto s: segment_in) segments.push_back(s);
 				std::vector<int> ix;
-				ix.reserve(ix_set.size());
-				for(auto x: ix_set) ix.push_back(x);
+				ix.push_back(node[i].x);
+				for(size_t s = 0; s < segments.size(); ++s)
+					for(size_t t = s + 1; t < segments.size(); ++t) {
+						// "+ 1" is nessary
+						int x = IntersectSegment(seg, segments[s], segments[t], intersection) + 1;
+						if(x > node[i].x && x < node[i + 1].x)
+							ix.push_back(x);
+					}
+				ix.push_back(node[i + 1].x);
 				std::sort(ix.begin(), ix.end());
+				ix.erase(unique(ix.begin(), ix.end()), ix.end());
 
 				for(size_t j = 0; j < ix.size() - 1; ++j) {
-					int segment;
 					float z = 0;
 					for(auto s: segment_in) {
 						float segment_z = 1 - seg[s].z(ix[j]);
-						if(segment_z > z) {
+						if(segment_z > z) { // need z clipping
 							z = segment_z;
 							segment = s;
 						}
 					}
-					Fragment fragment = seg[segment].f(ix[j]);
+					fragment = seg[segment].f(ix[j]);
 					for(int x = ix[j]; x < ix[j + 1];
 							++x, fragment += seg[segment].fragment_delta)
 						DrawPixel(x, y, fragment, depth_buf, frame_buf);
@@ -352,7 +386,7 @@ void DrawSegmentWithDepthTest(Scanline *scanline, float *depth_buf, unsigned cha
 void DrawSegmentWithoutDepthTest(Scanline *scanline, float *depth_buf, unsigned char* frame_buf) {
 	#pragma omp parallel for
 	for(int y = 0; y < h; ++y) {
-		vector<Segment> &seg = scanline[y].segment;
+		std::vector<Segment> &seg = scanline[y].segment;
 		for(size_t i = 0; i < seg.size(); ++i) {
 			int x = seg[i].x;
 			Fragment fragment = seg[i].fragment;
