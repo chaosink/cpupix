@@ -296,8 +296,8 @@ void DrawSegmentWithDepthTest(Scanline *scanline, float *depth_buf, unsigned cha
 			if(segment_in.empty()) {
 				assert(node[i].in);
 				segment_in.insert(node[i].segment);
-				int segment = node[i].segment;
-				Fragment fragment = seg[segment].fragment;
+				segment = node[i].segment;
+				fragment = seg[segment].fragment;
 				for(int x = node[i].x; x < node[i + 1].x;
 						++x, fragment += seg[segment].fragment_delta)
 					DrawPixel(x, y, fragment, depth_buf, frame_buf);
