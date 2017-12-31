@@ -286,7 +286,8 @@ void DrawSegmentWithDepthTest(Scanline *scanline, float *depth_buf, unsigned cha
 				fragment = seg[segment].fragment;
 			} else if(node[i].in) {
 				segment_in.insert(node[i].segment);
-				if(seg[node[i].segment].fragment.z < fragment.z) { // 1 - z0 > 1 - z1, z0 < z1
+				// 1 - z0 > 1 - z1, z0 < z1
+				if(seg[node[i].segment].fragment.z < fragment.z) { // need z clipping
 					segment = node[i].segment;
 					fragment = seg[segment].fragment;
 				}
@@ -298,7 +299,7 @@ void DrawSegmentWithDepthTest(Scanline *scanline, float *depth_buf, unsigned cha
 					float z = 0;
 					for(auto s: segment_in) {
 						float segment_z = 1 - seg[s].z(x);
-						if(segment_z > z) {
+						if(segment_z > z) { // need z clipping
 							z = segment_z;
 							segment = s;
 						}
