@@ -250,14 +250,15 @@ void DrawPixel(int x, int y, Fragment &fragment, float *depth_buf, unsigned char
 void DrawSegment(Scanline *scanline, float *depth_buf, unsigned char* frame_buf) {
 	#pragma omp parallel for
 	for(int y = 0; y < h; ++y) {
-		for(size_t i = 0; i < scanline[y].segment.size(); ++i) {
-			int x = scanline[y].segment[i].x;
-			Fragment fragment = scanline[y].segment[i].fragment;
-			for(int k = 0; k < scanline[y].segment[i].length - 1;
-					++k, ++x, fragment += scanline[y].segment[i].fragment_delta)
+		std::vector<Segment> &seg = scanline[y].segment;
+		for(size_t i = 0; i < seg.size(); ++i) {
+			int x = seg[i].x;
+			Fragment fragment = seg[i].fragment;
+			for(int k = 0; k < seg[i].length - 1;
+					++k, ++x, fragment += seg[i].fragment_delta)
 				DrawPixel(x, y, fragment, depth_buf, frame_buf);
 		}
-		scanline[y].segment.clear();
+		seg.clear();
 	}
 }
 
