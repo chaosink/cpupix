@@ -233,7 +233,7 @@ void RasterizeMSAA(glm::ivec2 corner, glm::ivec2 dim, Vertex *v, VertexOut *va, 
 		}
 }
 
-void DrawCharater(int ch, int x0, int y0, unsigned char *frame_buf) {
+void DrawCharater(int ch, int x0, int y0, int w, unsigned char *frame_buf) {
 	#pragma omp parallel for
 	for(int y = 0; y < 16; ++y)
 		for(int x = 0; x < 16; ++x) {
