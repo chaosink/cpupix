@@ -82,7 +82,7 @@ vec4 Lighting(FragmentIn &in) {
 
 void FragmentShader(FragmentIn &in, vec4 &color) {
 	/********** Visualization of normal **********/
-	// vec4 c = vec4(in.normal, 0.f);
+	// vec4 c = vec4(in.normal, 1.f);
 	// vec4 c = vec4(abs(in.normal), 1.f);
 	vec4 c = vec4(in.normal * 0.5f + 0.5f, 0.5f); // normalized
 
