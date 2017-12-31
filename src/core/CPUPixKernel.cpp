@@ -1,5 +1,6 @@
 #include "CPUPix.hpp"
 
+#include <cstring>
 #include <iostream>
 #include <algorithm>
 #include <unordered_set>
@@ -251,11 +252,12 @@ void DrawPixel(int x, int y, Fragment &fragment, float *depth_buf, unsigned char
 
 int IntersectSegment(
 	std::vector<Segment> &seg, int s0, int s1,
-	std::map<std::pair<int, int>, int> &intersection
+	int n,
+	int *intersection
 ) {
-	if(intersection[{s0, s1}])
-		return intersection[{s0, s1}];
-	return intersection[{s0, s1}] = intersection[{s1, s0}] =
+	if(intersection[s0 * n + s1])
+		return intersection[s0 * n + s1];
+	return intersection[s0 * n + s1] = intersection[s1 * n + s0] =
 		((seg[s0].fragment_delta.z * seg[s0].x - seg[s1].fragment_delta.z * seg[s1].x)
 			- (seg[s0].fragment.z - seg[s1].fragment.z))
 		/ (seg[s0].fragment_delta.z - seg[s1].fragment_delta.z);
@@ -289,7 +291,8 @@ void DrawSegmentWithDepthTest(Scanline *scanline, float *depth_buf, unsigned cha
 		});
 
 		std::unordered_set<int> segment_in;
-		std::map<std::pair<int, int>, int> intersection;
+		int *intersection = new int[seg.size() * seg.size()];
+		memset(intersection, 0, sizeof(int) * seg.size() * seg.size());
 		int segment;
 		Fragment fragment;
 		for(size_t i = 0; i < node.size() - 1; ++i) {
@@ -321,7 +324,7 @@ void DrawSegmentWithDepthTest(Scanline *scanline, float *depth_buf, unsigned cha
 					if(seg[s0].z(node[i].x) > seg[s1].z(node[i].x)) // need z clipping
 						std::swap(s0, s1);
 					if(seg[s0].z(node[i + 1].x) > seg[s1].z(node[i + 1].x)) { // need z clipping
-						int ix = IntersectSegment(seg, s0, s1, intersection);
+						int ix = IntersectSegment(seg, s0, s1, seg.size(), intersection);
 						segment = s0;
 						fragment = seg[segment].f(node[i].x);
 						for(int x = node[i].x; x < ix;
@@ -353,7 +356,7 @@ void DrawSegmentWithDepthTest(Scanline *scanline, float *depth_buf, unsigned cha
 				for(size_t s = 0; s < segments.size(); ++s)
 					for(size_t t = s + 1; t < segments.size(); ++t) {
 						// "+ 1" is nessary
-						int x = IntersectSegment(seg, segments[s], segments[t], intersection) + 1;
+						int x = IntersectSegment(seg, segments[s], segments[t], seg.size(), intersection) + 1;
 						if(x > node[i].x && x < node[i + 1].x)
 							ix.push_back(x);
 					}
@@ -378,6 +381,7 @@ void DrawSegmentWithDepthTest(Scanline *scanline, float *depth_buf, unsigned cha
 			}
 		}
 
+		delete[] intersection;
 		seg.clear();
 	}
 }
