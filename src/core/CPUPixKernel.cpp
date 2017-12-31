@@ -3,6 +3,7 @@
 #include <iostream>
 #include <algorithm>
 #include <unordered_set>
+#include <map>
 using namespace std;
 
 namespace cpupix {
@@ -249,6 +250,19 @@ void DrawPixel(int x, int y, Fragment &fragment, float *depth_buf, unsigned char
 	}
 }
 
+int IntersectSegment(
+	vector<Segment> &seg, int s0, int s1,
+	std::map<std::pair<int, int>, std::pair<bool, int>> &intersection
+) {
+	if(intersection[{s0, s1}].first)
+		return intersection[{s0, s1}].second;
+	intersection[{s0, s1}].first = intersection[{s1, s0}].first = true;
+	return intersection[{s0, s1}].second = intersection[{s1, s0}].second =
+		((seg[s0].fragment_delta.z * seg[s0].x - seg[s1].fragment_delta.z * seg[s1].x)
+			- (seg[s0].fragment.z - seg[s1].fragment.z))
+		/ (seg[s0].fragment_delta.z - seg[s1].fragment_delta.z);
+}
+
 // scanline with segment if depth_test is true
 void DrawSegmentWithDepthTest(Scanline *scanline, float *depth_buf, unsigned char* frame_buf) {
 	#pragma omp parallel for
@@ -277,40 +291,56 @@ void DrawSegmentWithDepthTest(Scanline *scanline, float *depth_buf, unsigned cha
 		});
 
 		std::unordered_set<int> segment_in;
-		int segment = -1;
-		Fragment fragment;
+		std::map<std::pair<int, int>, std::pair<bool, int>> intersection;
 		for(size_t i = 0; i < node.size() - 1; ++i) {
 			if(segment_in.empty()) {
 				assert(node[i].in);
 				segment_in.insert(node[i].segment);
-				segment = node[i].segment;
-				fragment = seg[segment].fragment;
-			} else if(node[i].in) {
-				segment_in.insert(node[i].segment);
-				if(seg[node[i].segment].fragment.z < fragment.z) { // 1 - z0 > 1 - z1, z0 < z1
-					segment = node[i].segment;
-					fragment = seg[segment].fragment;
-				}
+				int segment = node[i].segment;
+				Fragment fragment = seg[segment].fragment;
+				for(int x = node[i].x; x < node[i + 1].x;
+						++x, fragment += seg[segment].fragment_delta)
+					DrawPixel(x, y, fragment, depth_buf, frame_buf);
 			} else {
-				segment_in.erase(node[i].segment);
-				int x = node[i].x;
-				if(segment == node[i].segment) {
-					segment = -1;
+				if(node[i].in)
+					segment_in.insert(node[i].segment);
+				else
+					segment_in.erase(node[i].segment);
+				if(segment_in.empty()) continue;
+
+				std::vector<int> segment;
+				segment.reserve(segment_in.size());
+				for(auto s: segment_in) segment.push_back(s);
+				std::unordered_set<int> ix_set;
+				ix_set.insert(node[i].x);
+				for(size_t s = 0; s < segment.size(); ++s)
+					for(size_t t = s + 1; t < segment.size(); ++t) {
+						int x = IntersectSegment(seg, segment[s], segment[t], intersection);
+						if(x > node[i].x && x < node[i + 1].x)
+							ix_set.insert(x);
+					}
+				ix_set.insert(node[i + 1].x);
+				std::vector<int> ix;
+				ix.reserve(ix_set.size());
+				for(auto x: ix_set) ix.push_back(x);
+				std::sort(ix.begin(), ix.end());
+
+				for(size_t j = 0; j < ix.size() - 1; ++j) {
+					int segment;
 					float z = 0;
 					for(auto s: segment_in) {
-						float segment_z = 1 - seg[s].z(x);
+						float segment_z = 1 - seg[s].z(ix[j]);
 						if(segment_z > z) {
 							z = segment_z;
 							segment = s;
 						}
 					}
-					if(segment != -1) fragment = seg[segment].f(x);
+					Fragment fragment = seg[segment].f(ix[j]);
+					for(int x = ix[j]; x < ix[j + 1];
+							++x, fragment += seg[segment].fragment_delta)
+						DrawPixel(x, y, fragment, depth_buf, frame_buf);
 				}
 			}
-			if(segment != -1)
-				for(int x = node[i].x; x < node[i + 1].x;
-						++x, fragment += seg[segment].fragment_delta)
-					DrawPixel(x, y, fragment, depth_buf, frame_buf);
 		}
 
 		seg.clear();
