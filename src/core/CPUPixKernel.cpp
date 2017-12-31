@@ -3,7 +3,6 @@
 #include <iostream>
 #include <algorithm>
 #include <unordered_set>
-using namespace std;
 
 namespace cpupix {
 
@@ -199,7 +198,7 @@ void ScanTriangle(Vertex *v, VertexOut *vo, Scanline *scanline) {
 		if(x_r[i] < x_l[i]) continue;
 		if(x_r[i] < 0 || x_l[i] >= w) continue; // maybe needless if do 2D clipping
 		int l = x_l[i];
-		int r = min(x_r[i], w - 1);
+		int r = glm::min(x_r[i], w - 1);
 		Fragment fragment = fragment_l[i];
 		Fragment fragment_delta = (fragment_r[i] - fragment_l[i]) / (x_r[i] - x_l[i]);
 		if(x_l[i] < 0) {  // maybe needless if do 2D clipping
@@ -253,7 +252,7 @@ void DrawPixel(int x, int y, Fragment &fragment, float *depth_buf, unsigned char
 void DrawSegmentWithDepthTest(Scanline *scanline, float *depth_buf, unsigned char* frame_buf) {
 	#pragma omp parallel for
 	for(int y = 0; y < h; ++y) {
-		vector<Segment> &seg = scanline[y].segment;
+		std::vector<Segment> &seg = scanline[y].segment;
 		if(seg.size() == 0) continue;
 
 		std::vector<ScanNode> node;
@@ -321,7 +320,7 @@ void DrawSegmentWithDepthTest(Scanline *scanline, float *depth_buf, unsigned cha
 void DrawSegmentWithoutDepthTest(Scanline *scanline, float *depth_buf, unsigned char* frame_buf) {
 	#pragma omp parallel for
 	for(int y = 0; y < h; ++y) {
-		vector<Segment> &seg = scanline[y].segment;
+		std::vector<Segment> &seg = scanline[y].segment;
 		for(size_t i = 0; i < seg.size(); ++i) {
 			int x = seg[i].x;
 			Fragment fragment = seg[i].fragment;
