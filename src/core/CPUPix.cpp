@@ -34,7 +34,7 @@ void WindowSpace(Vertex *v);
 void AssemTriangle(Vertex *v, Triangle *triangle);
 void ScanTriangle(Vertex *v, VertexOut *vo, Scanline *scanline_);
 void DrawSegment(Scanline *scanline_, float *depth_buf, unsigned char* frame_buf);
-void DrawCharater(int ch, int x0, int y0, unsigned char *frame_buf);
+void DrawCharater(int ch, int x0, int y0, int w, unsigned char *frame_buf);
 void DownSample(unsigned char *frame_buf, unsigned char *pbo_buf);
 
 }
@@ -164,12 +164,12 @@ void CPUPix::Draw() {
 }
 
 void CPUPix::DrawFPS(int fps) {
-	kernel::DrawCharater('F',  0, 0, frame_);
-	kernel::DrawCharater('P', 16, 0, frame_);
-	kernel::DrawCharater('S', 32 - 3, 0, frame_);
-	kernel::DrawCharater(fps % 1000 / 100 + 48, 48 + 5, 0, frame_);
-	kernel::DrawCharater(fps % 100 / 10   + 48, 64 + 5, 0, frame_);
-	kernel::DrawCharater(fps % 10         + 48, 80 + 5, 0, frame_);
+	kernel::DrawCharater('F',  0, 0, window_w_, frame_);
+	kernel::DrawCharater('P', 16, 0, window_w_, frame_);
+	kernel::DrawCharater('S', 32 - 3, 0, window_w_, frame_);
+	kernel::DrawCharater(fps % 1000 / 100 + 48, 48 + 5, 0, window_w_, frame_);
+	kernel::DrawCharater(fps % 100 / 10   + 48, 64 + 5, 0, window_w_, frame_);
+	kernel::DrawCharater(fps % 10         + 48, 80 + 5, 0, window_w_, frame_);
 }
 
 void CPUPix::VertexData(int size, float *position, float *normal, float *uv) {
