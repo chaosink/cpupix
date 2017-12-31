@@ -81,7 +81,6 @@ int main(int argc, char *argv[]) {
 	// pix.CullFace(Face::FRONT);
 	// pix.FrontFace(Winding::CW);
 
-
 	Light light[2]{
 		 5.f, 4.f, 3.f, // position
 		 1.f, 1.f, 1.f, // color
