@@ -315,7 +315,8 @@ void DrawSegmentWithDepthTest(Scanline *scanline, float *depth_buf, unsigned cha
 				ix_set.insert(node[i].x);
 				for(size_t s = 0; s < segment.size(); ++s)
 					for(size_t t = s + 1; t < segment.size(); ++t) {
-						int x = IntersectSegment(seg, segment[s], segment[t], intersection);
+						// "+ 1" is nessary
+						int x = IntersectSegment(seg, segment[s], segment[t], intersection) + 1;
 						if(x > node[i].x && x < node[i + 1].x)
 							ix_set.insert(x);
 					}
