@@ -49,3 +49,13 @@ SSAA
 ![FlickeringDots](result/image/shadertoy/FlickeringDots.png)
 
 ![DeformFlower](result/image/shadertoy/DeformFlower.png)
+
+* Large number of faces
+
+bunny, 69451 faces, 26-28 FPS
+
+![bunny](result/image/large_number_of_faces/bunny-69451.png)
+
+sponza, 279105 faces, 8 FPS
+
+![sponza_top](result/image/large_number_of_faces/sponza_top-279105.png)
