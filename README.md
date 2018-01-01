@@ -54,7 +54,7 @@ SSAA
 
 * Large number of faces
 
-bunny, 69451 faces, 17 FPS
+bunny, 69451 faces, 16-17 FPS
 
 ![bunny](result/image/large_number_of_faces/bunny-69451.png)
 
