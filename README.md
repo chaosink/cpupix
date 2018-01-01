@@ -47,3 +47,5 @@ SSAA
 ![FlickeringDots](result/image/shadertoy/FlickeringDots.png)
 
 ![DeformFlower](result/image/shadertoy/DeformFlower.png)
+
+More image results and some video results can be found in the `result` directory.
