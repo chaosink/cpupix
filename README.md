@@ -52,4 +52,14 @@ SSAA
 
 ![DeformFlower](result/image/shadertoy/DeformFlower.png)
 
+* Large number of faces
+
+bunny, 69451 faces, 17 FPS
+
+![bunny](result/image/large_number_of_faces/bunny-69451.png)
+
+sponza, 279105 faces, 4 FPS
+
+![sponza_top](result/image/large_number_of_faces/sponza_top-279105.png)
+
 More image results and some video results can be found in the `result` directory.
