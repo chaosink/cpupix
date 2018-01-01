@@ -6,6 +6,10 @@ The details will be listed...
 
 # Results
 
+* penetration
+
+![penetration](result/image/penetration/penetration.png)
+
 * depth test and blending
 
 ![depth-t_blend-f](result/image/depth_blend/depth-t_blend-f.png)
