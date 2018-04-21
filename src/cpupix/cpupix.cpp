@@ -21,6 +21,7 @@ GLFWwindow* InitGLFW(int window_w, int window_h) {
 	GLFWwindow *window = glfwCreateWindow(window_w, window_h, "CPUPix", NULL, NULL);
 	if(!window) {
 		glfwTerminate();
+		fprintf(stderr, "Failed to create GLFW window\n");
 		exit(EXIT_FAILURE);
 	}
 	glfwMakeContextCurrent(window);
