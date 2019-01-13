@@ -57,6 +57,27 @@ void WindowSpace(Vertex *v) {
 void AssemTriangle(Vertex *v, Triangle *triangle) {
 	#pragma omp parallel for
 	for(int x = 0; x < n_triangle; ++x) {
+		bool valid = true;
+		for(int i = x * 3; i < x * 3 + 3; ++i) {
+			glm::vec3 p = v[i].position * v[i].position.w;
+			if(p.x < -1 || p.x > 1
+			|| p.y < -1 || p.y > 1
+			|| p.z < -1 || p.z > 1) {
+				valid = false;
+				break;
+			}
+
+			p.x = (p.x * 0.5f + 0.5f) * w;
+			p.y = (p.y * 0.5f + 0.5f) * h;
+			v[i].position.x = p.x;
+			v[i].position.y = p.y;
+			v[i].position.z = p.z;
+		}
+		if(!valid) {
+			triangle[x].empty = true;
+			continue;
+		}
+
 		glm::vec2
 			p0(v[x * 3 + 0].position.x, v[x * 3 + 0].position.y),
 			p1(v[x * 3 + 1].position.x, v[x * 3 + 1].position.y),
@@ -70,9 +91,10 @@ void AssemTriangle(Vertex *v, Triangle *triangle) {
 			iv_min = v_min + 0.5f,
 			iv_max = v_max + 0.5f;
 
-		triangle[x].empty = (iv_min.x >= w || iv_min.y >= h || iv_max.x < 0 || iv_max.y < 0
-			|| (v[0].position.z > 1 && v[1].position.z > 1 && v[2].position.z > 1)
-			|| (v[0].position.z <-1 && v[1].position.z <-1 && v[2].position.z <-1));
+		triangle[x].empty = false;
+		// triangle[x].empty = (iv_min.x >= w || iv_min.y >= h || iv_max.x < 0 || iv_max.y < 0
+		// 	|| (v[x * 3 + 0].position.z > 1 && v[x * 3 + 1].position.z > 1 && v[x * 3 + 2].position.z > 1)
+		// 	|| (v[x * 3 + 0].position.z <-1 && v[x * 3 + 1].position.z <-1 && v[x * 3 + 2].position.z <-1));
 		triangle[x].winding = Winding((p1.x - p0.x) * (p2.y - p1.y) - (p1.y - p0.y) * (p2.x - p1.x) < 0);
 
 		iv_min = glm::clamp(iv_min, c0, c1);

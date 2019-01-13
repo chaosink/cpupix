@@ -143,7 +143,7 @@ void CPUPix::Clear() {
 
 void CPUPix::Draw() {
 	kernel::NormalSpace(vertex_in_, vertex_out_, vertex_buf_);
-	kernel::WindowSpace(vertex_buf_);
+	// kernel::WindowSpace(vertex_buf_);
 	kernel::AssemTriangle(vertex_buf_, triangle_buf_);
 	for(int i = 0; i < n_triangle_; i++)
 		if(!triangle_buf_[i].empty)
